@@ -1,4 +1,4 @@
-import PricingCard from "./PricingCard";
+import PricingCard from "./pricing-card";
 
 export default function Pricing() {
   return (
@@ -10,29 +10,30 @@ export default function Pricing() {
 
         <div className="mt-12 grid md:grid-cols-3 gap-8">
           <PricingCard
-            title="Starter"
-            price="$10"
-            features={["1 tienda", "Productos ilimitados", "Soporte básico"]}
+            title="Free Trial"
+            price="$0"
+            features={["Acceso completo por 7 días"]}
           />
 
           <PricingCard
             highlight
-            title="Pro"
-            price="$25"
+            badge="Más elegido"
+            title="Basic"
+            price="$50"
             features={[
-              "Hasta 3 tiendas",
-              "Suscripciones",
-              "Soporte prioritario",
+              "Hasta 1 tienda",
+              "Carga de productos limitada (50)",
+              "Soporte por email",
             ]}
           />
 
           <PricingCard
-            title="Enterprise"
-            price="Custom"
+            title="Pro"
+            price="$100"
             features={[
-              "Tiendas ilimitadas",
-              "Integraciones avanzadas",
-              "Soporte dedicado",
+              "Hasta 5 tiendas",
+              "Integraciones ilimitadas",
+              "Soporte prioritario",
             ]}
           />
         </div>
