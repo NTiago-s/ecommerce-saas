@@ -25,7 +25,7 @@ export default function HowItWorks() {
         <div className="mt-12 grid md:grid-cols-3 gap-8">
           {STEPS.map((item) => (
             <div key={item.step} className="text-center">
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-emerald-600 text-white font-bold">
+              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white font-bold">
                 {item.step}
               </div>
 

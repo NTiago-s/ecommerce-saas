@@ -1,6 +1,6 @@
-import { auth } from "@/auth";
+import { auth } from "../../auth";
 import { redirect } from "next/navigation";
-import RegisterForm from "./RegisterForm";
+import RegisterForm from "./register-form";
 
 export default async function RegisterPage() {
   const session = await auth();
@@ -10,10 +10,5 @@ export default async function RegisterPage() {
     redirect("/dashboard");
   }
 
-  return (
-    <div style={{ maxWidth: 400, margin: "50px auto" }}>
-      <h1>Crear cuenta</h1>
-      <RegisterForm />
-    </div>
-  );
+  return <RegisterForm />;
 }

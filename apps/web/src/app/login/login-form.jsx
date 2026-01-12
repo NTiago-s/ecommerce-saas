@@ -4,11 +4,20 @@
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, Loader2, AlertCircle, ArrowRight } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  Loader2,
+  AlertCircle,
+  ArrowRight,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -54,8 +63,8 @@ export default function LoginForm() {
 
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
-            {/* Email Input */}
-            <div className="relative">
+            {/* Email */}
+            <div>
               <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider ml-1">
                 Correo Electrónico
               </label>
@@ -68,14 +77,14 @@ export default function LoginForm() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all sm:text-sm"
                   placeholder="ejemplo@correo.com"
+                  className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all sm:text-sm"
                 />
               </div>
             </div>
 
-            {/* Password Input */}
-            <div className="relative">
+            {/* Password */}
+            <div>
               <div className="flex justify-between items-center ml-1">
                 <label className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
                   Contraseña
@@ -87,23 +96,33 @@ export default function LoginForm() {
                   ¿Olvidaste tu contraseña?
                 </a>
               </div>
+
               <div className="relative mt-1">
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
                   <Lock size={18} />
                 </div>
+
                 <input
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all sm:text-sm"
                   placeholder="••••••••"
+                  className="block w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all sm:text-sm"
                 />
+
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600"
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
               </div>
             </div>
           </div>
 
-          {/* Error Message */}
+          {/* Error */}
           {error && (
             <div className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-lg animate-in fade-in duration-300">
               <AlertCircle size={18} />
@@ -111,7 +130,7 @@ export default function LoginForm() {
             </div>
           )}
 
-          {/* Submit Button */}
+          {/* Submit */}
           <button
             type="submit"
             disabled={loading}
@@ -121,7 +140,7 @@ export default function LoginForm() {
               <Loader2 className="w-5 h-5 animate-spin" />
             ) : (
               <span className="flex items-center gap-2">
-                Iniciar Sesión{" "}
+                Iniciar Sesión
                 <ArrowRight
                   size={18}
                   className="group-hover:translate-x-1 transition-transform"

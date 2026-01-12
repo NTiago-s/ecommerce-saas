@@ -1,3 +1,6 @@
+// import Button from "@/ui/button";
+import Button from "../../ui/button";
+
 export default function PricingCard({
   title,
   price,
@@ -29,9 +32,9 @@ export default function PricingCard({
       </ul>
 
       {/* BOTÓN SIEMPRE ABAJO */}
-      <button className="mt-8 w-full cursor-pointer rounded-lg bg-emerald-600 py-3 text-white hover:bg-emerald-700">
+      <Button variant="primary" fullWidth className="mt-8">
         Elegir plan
-      </button>
+      </Button>
     </div>
   );
 }
