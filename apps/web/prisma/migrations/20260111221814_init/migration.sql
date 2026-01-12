@@ -1,31 +1,35 @@
-/*
-  Warnings:
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('OWNER', 'ADMIN', 'STAFF');
 
-  - You are about to drop the column `role` on the `User` table. All the data in the column will be lost.
-  - You are about to drop the column `storeId` on the `User` table. All the data in the column will be lost.
-  - Added the required column `ownerId` to the `Store` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `updatedAt` to the `Store` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `updatedAt` to the `User` table without a default value. This is not possible if the table is not empty.
-
-*/
 -- CreateEnum
 CREATE TYPE "StoreStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'SUSPENDED');
 
 -- CreateEnum
 CREATE TYPE "SubscriptionStatus" AS ENUM ('ACTIVE', 'PAST_DUE', 'CANCELED', 'INCOMPLETE');
 
--- DropForeignKey
-ALTER TABLE "User" DROP CONSTRAINT "User_storeId_fkey";
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "password" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
--- AlterTable
-ALTER TABLE "Store" ADD COLUMN     "ownerId" TEXT NOT NULL,
-ADD COLUMN     "status" "StoreStatus" NOT NULL DEFAULT 'ACTIVE',
-ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL;
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
 
--- AlterTable
-ALTER TABLE "User" DROP COLUMN "role",
-DROP COLUMN "storeId",
-ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL;
+-- CreateTable
+CREATE TABLE "Store" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "subdomain" TEXT NOT NULL,
+    "status" "StoreStatus" NOT NULL DEFAULT 'ACTIVE',
+    "ownerId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Store_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "StoreUser" (
@@ -119,6 +123,15 @@ CREATE TABLE "VerificationToken" (
 );
 
 -- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Store_subdomain_key" ON "Store"("subdomain");
+
+-- CreateIndex
+CREATE INDEX "Store_subdomain_idx" ON "Store"("subdomain");
+
+-- CreateIndex
 CREATE INDEX "StoreUser_storeId_idx" ON "StoreUser"("storeId");
 
 -- CreateIndex
@@ -153,9 +166,6 @@ CREATE UNIQUE INDEX "VerificationToken_token_key" ON "VerificationToken"("token"
 
 -- CreateIndex
 CREATE UNIQUE INDEX "VerificationToken_identifier_token_key" ON "VerificationToken"("identifier", "token");
-
--- CreateIndex
-CREATE INDEX "Store_subdomain_idx" ON "Store"("subdomain");
 
 -- AddForeignKey
 ALTER TABLE "Store" ADD CONSTRAINT "Store_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

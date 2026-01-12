@@ -11,22 +11,25 @@ datasource db {
 //////////////////////
 
 enum Role {
-  OWNER
   ADMIN
-  STAFF
+  USER
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
 }
 
 enum StoreStatus {
   ACTIVE
   INACTIVE
-  SUSPENDED
 }
 
 enum SubscriptionStatus {
+  TRIAL
   ACTIVE
   PAST_DUE
   CANCELED
-  INCOMPLETE
 }
 
 //////////////////////
@@ -34,20 +37,22 @@ enum SubscriptionStatus {
 //////////////////////
 
 model User {
-  id       String  @id @default(cuid())
-  email    String  @unique
-  password String?
+  id       String     @id @default(cuid())
+  email    String     @unique
+  password String
+  phone    String?
+  role     Role       @default(USER)
+  status   UserStatus @default(ACTIVE)
 
-  // tiendas donde participa (roles)
-  memberships StoreUser[]
+  // Un usuario puede tener varias tiendas
+  stores Store[]
 
-  // tiendas que posee
-  ownedStores Store[] @relation("StoreOwner")
+  // Auth.js
+  accounts Account[]
+  sessions Session[]
 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  accounts  Account[]
-  sessions  Session[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 //////////////////////
@@ -60,39 +65,18 @@ model Store {
   subdomain String      @unique
   status    StoreStatus @default(ACTIVE)
 
-  // dueño
   ownerId String
-  owner   User   @relation("StoreOwner", fields: [ownerId], references: [id])
+  owner   User   @relation(fields: [ownerId], references: [id])
 
-  // usuarios con roles
-  users StoreUser[]
+  // Cada tienda tiene una suscripción
+  subscription Subscription?
 
-  subscription  Subscription?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   billingEvents BillingEvent[]
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  @@index([ownerId])
   @@index([subdomain])
-}
-
-//////////////////////
-// STORE USERS (RBAC)
-//////////////////////
-
-model StoreUser {
-  id      String @id @default(cuid())
-  userId  String
-  storeId String
-  role    Role   @default(STAFF)
-
-  user  User  @relation(fields: [userId], references: [id])
-  store Store @relation(fields: [storeId], references: [id])
-
-  createdAt DateTime @default(now())
-
-  @@unique([userId, storeId])
-  @@index([storeId])
 }
 
 //////////////////////
@@ -109,8 +93,8 @@ model Plan {
   stripePriceId String @unique
 
   maxProducts Int?
-  maxStaff    Int?
   maxOrders   Int?
+  maxStaff    Int?
 
   features Json
 
@@ -121,31 +105,36 @@ model Plan {
 }
 
 //////////////////////
-// SUBSCRIPTION
+// SUBSCRIPTION (POR TIENDA)
 //////////////////////
 
 model Subscription {
   id     String             @id @default(cuid())
-  status SubscriptionStatus @default(INCOMPLETE)
+  status SubscriptionStatus
 
   storeId String @unique
   store   Store  @relation(fields: [storeId], references: [id])
 
-  planId String
-  plan   Plan   @relation(fields: [planId], references: [id])
+  planId String?
+  plan   Plan?   @relation(fields: [planId], references: [id])
 
-  stripeCustomerId     String @unique
-  stripeSubscriptionId String @unique
+  // Stripe (solo cuando es pago)
+  stripeCustomerId     String?
+  stripeSubscriptionId String? @unique
 
-  currentPeriodEnd  DateTime
-  cancelAtPeriodEnd Boolean  @default(false)
+  // Trial
+  trialStartedAt DateTime?
+  trialEndsAt    DateTime?
+
+  // Pago
+  currentPeriodEnd DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 //////////////////////
-// BILLING EVENTS
+// BILLING EVENTS (WEBHOOKS)
 //////////////////////
 
 model BillingEvent {
