@@ -4,7 +4,7 @@ import Button from "../ui/button";
 
 export default function Header() {
   return (
-    <div className="fixed top-0 left-0 w-full z-50 border-b border-gray-200 bg-white shadow-sm">
+    <div className="sticky top-0 left-0 w-full border-b border-gray-200 bg-white shadow-sm z-50">
       {/* Header Principal */}
       <header className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
