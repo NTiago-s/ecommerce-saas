@@ -1,8 +1,8 @@
-import Button from "../ui/button";
+import Button from "ui/button"
 
-export default function Hero() {
+const Hero = () => {
   return (
-    <section className="bg-linear-to-br from-blue-600 to-blue-800 text-white">
+    <section className="bg-gradient-to-br from-blue-600 to-blue-800 text-white">
       <div className="mx-auto max-w-7xl px-6 py-24 grid md:grid-cols-2 gap-12 items-center">
         <div>
           <h1 className="text-4xl md:text-6xl font-bold leading-tight">
@@ -33,5 +33,7 @@ export default function Hero() {
         </div>
       </div>
     </section>
-  );
+  )
 }
+
+export default Hero
