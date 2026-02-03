@@ -1,4 +1,3 @@
-// ProductGridClient.jsx
 "use client";
 
 import ProductCard from "./card-store";

@@ -1,5 +1,5 @@
 "use client";
-import { createMedusaProduct } from "../../app/actions/store-actions/medusa-admin";
+import { createMedusaProduct } from "../../../app/actions/store-actions/products/create-products";
 import { useState } from "react";
 
 export default function CreateProductForm() {

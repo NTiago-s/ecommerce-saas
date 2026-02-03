@@ -26,9 +26,13 @@ export default function Hero() {
           </div>
         </div>
 
-        <div className="rounded-2xl bg-white/10 backdrop-blur p-6 shadow-xl">
+        <div className="rounded-2xl bg-white/10 backdrop-blur p-4 shadow-xl">
           <div className="h-64 rounded-xl bg-blue-900/40 flex items-center justify-center">
-            <span className="text-blue-200">Preview del dashboard</span>
+            <img
+              src="/dashboard.jpeg"
+              alt="Dashboard preview"
+              className="w-full h-full object-cover rounded-xl"
+            />
           </div>
         </div>
       </div>

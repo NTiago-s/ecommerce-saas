@@ -13,7 +13,7 @@ export default function ProductCard({ product }) {
   });
 
   return (
-    <div className="group bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-2xl transition-all duration-300">
+    <div className="group bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-2xl transition-all duration-300 mt-6 ">
       {/* Imagen */}
       <div className="relative h-56 w-full overflow-hidden">
         <img
@@ -42,7 +42,7 @@ export default function ProductCard({ product }) {
             {formattedPrice}
           </span>
 
-          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow">
+          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow cursor-pointer">
             Ver más
           </button>
         </div>

@@ -1,14 +1,17 @@
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import Button from "../ui/button";
+import { auth } from "../auth";
 
-export default function Header() {
+export default async function Header() {
+  const session = await auth();
+  const isLoggedIn = !!session?.user;
+
   return (
     <div className="sticky top-0 left-0 w-full border-b border-gray-200 bg-white shadow-sm z-50">
-      {/* Header Principal */}
       <header className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex h-20 items-center justify-between">
-          {/* Menú Mobile (Solo visible en móviles) */}
+          {/* Menú Mobile */}
           <div className="flex lg:hidden">
             <button className="text-gray-600 hover:text-black">
               <Menu size={24} />
@@ -19,7 +22,7 @@ export default function Header() {
           <div className="shrink-0">
             <Link
               href="/"
-              className="text-2xl font-bold tracking-tighter text-black italic"
+              className="text-2xl font-bold tracking-tighter italic"
             >
               <img
                 src="/logo-codeluxe.webp"
@@ -57,14 +60,22 @@ export default function Header() {
             </Link>
           </nav>
 
-          {/* Iconos de Acción */}
+          {/* Acciones */}
           <div className="flex items-center space-x-5">
-            <Button variant="primary" href="/login">
-              Iniciar Sesión
-            </Button>
-            <Button variant="outline" href="/register">
-              Registrarse
-            </Button>
+            {!isLoggedIn ? (
+              <>
+                <Button variant="primary" href="/login">
+                  Iniciar Sesión
+                </Button>
+                <Button variant="outline" href="/register">
+                  Registrarse
+                </Button>
+              </>
+            ) : (
+              <Button variant="primary" href="/dashboard">
+                Dashboard
+              </Button>
+            )}
           </div>
         </div>
       </header>

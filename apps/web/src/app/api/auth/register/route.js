@@ -5,20 +5,20 @@ import prisma from "@/lib/prisma";
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { email, password } = body;
+    const { email, password, phone } = body;
 
     // Validaciones básicas
     if (!email || !password) {
       return NextResponse.json(
         { error: "Email y password son obligatorios" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
     if (password.length < 6) {
       return NextResponse.json(
         { error: "La contraseña debe tener al menos 6 caracteres" },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -30,7 +30,7 @@ export async function POST(req) {
     if (existingUser) {
       return NextResponse.json(
         { error: "El usuario ya existe" },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -42,6 +42,7 @@ export async function POST(req) {
       data: {
         email,
         password: hashedPassword,
+        phone,
       },
       select: {
         id: true,
@@ -55,7 +56,7 @@ export async function POST(req) {
     console.error("REGISTER ERROR:", error);
     return NextResponse.json(
       { error: "Error interno del servidor" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
