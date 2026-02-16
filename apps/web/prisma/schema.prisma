@@ -6,9 +6,134 @@ datasource db {
   provider = "postgresql"
 }
 
-//////////////////////
-// ENUMS
-//////////////////////
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String
+  phone         String?
+  role          Role           @default(USER)
+  status        UserStatus     @default(ACTIVE)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  accounts      Account[]
+  sessions      Session[]
+  stores        Store[]
+  storeStaffs   StoreStaff[]
+  subscriptions Subscription[]
+}
+
+model Store {
+  id                   String         @id @default(cuid())
+  name                 String
+  subdomain            String         @unique
+  status               StoreStatus    @default(ACTIVE)
+  medusaStoreId        String?
+  medusaSalesChannelId String?
+  ownerId              String
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
+  subscriptionId       String
+  billingEvents        BillingEvent[]
+  owner                User           @relation(fields: [ownerId], references: [id])
+  subscription         Subscription   @relation(fields: [subscriptionId], references: [id])
+  storeStaffs          StoreStaff[]
+
+  @@index([ownerId])
+  @@index([subdomain])
+  @@index([subscriptionId])
+}
+
+model StoreStaff {
+  id      String @id @default(cuid())
+  storeId String
+  userId  String
+  role    String
+  store   Store  @relation(fields: [storeId], references: [id])
+  user    User   @relation(fields: [userId], references: [id])
+
+  @@unique([storeId, userId])
+}
+
+model Plan {
+  id            String         @id @default(cuid())
+  name          String
+  price         Int
+  currency      String         @default("usd")
+  stripePriceId String         @unique
+  maxProducts   Int?
+  maxOrders     Int?
+  maxStaff      Int?
+  features      Json
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  maxStores     Int?
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  status               SubscriptionStatus
+  planId               String?
+  stripeCustomerId     String?
+  stripeSubscriptionId String?            @unique
+  trialStartedAt       DateTime?
+  trialEndsAt          DateTime?
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  userId               String
+  mpPayerId            String?
+  mpPreapprovalId      String?            @unique
+  stores               Store[]
+  plan                 Plan?              @relation(fields: [planId], references: [id])
+  user                 User               @relation(fields: [userId], references: [id])
+}
+
+model BillingEvent {
+  id            String   @id @default(cuid())
+  storeId       String
+  type          String
+  stripeEventId String   @unique
+  payload       Json
+  createdAt     DateTime @default(now())
+  store         Store    @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
 
 enum Role {
   ADMIN
@@ -30,163 +155,5 @@ enum SubscriptionStatus {
   ACTIVE
   PAST_DUE
   CANCELED
-}
-
-//////////////////////
-// USER
-//////////////////////
-
-model User {
-  id       String     @id @default(cuid())
-  email    String     @unique
-  password String
-  phone    String?
-  role     Role       @default(USER)
-  status   UserStatus @default(ACTIVE)
-
-  // Un usuario puede tener varias tiendas
-  stores Store[]
-
-  // Auth.js
-  accounts Account[]
-  sessions Session[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-//////////////////////
-// STORE (TENANT)
-//////////////////////
-
-model Store {
-  id        String      @id @default(cuid())
-  name      String
-  subdomain String      @unique
-  status    StoreStatus @default(ACTIVE)
-
-  ownerId String
-  owner   User   @relation(fields: [ownerId], references: [id])
-
-  // Cada tienda tiene una suscripción
-  subscription Subscription?
-
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  billingEvents BillingEvent[]
-
-  @@index([ownerId])
-  @@index([subdomain])
-}
-
-//////////////////////
-// PLAN
-//////////////////////
-
-model Plan {
-  id   String @id @default(cuid())
-  name String
-
-  price    Int
-  currency String @default("usd")
-
-  stripePriceId String @unique
-
-  maxProducts Int?
-  maxOrders   Int?
-  maxStaff    Int?
-
-  features Json
-
-  subscriptions Subscription[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-//////////////////////
-// SUBSCRIPTION (POR TIENDA)
-//////////////////////
-
-model Subscription {
-  id     String             @id @default(cuid())
-  status SubscriptionStatus
-
-  storeId String @unique
-  store   Store  @relation(fields: [storeId], references: [id])
-
-  planId String?
-  plan   Plan?   @relation(fields: [planId], references: [id])
-
-  // Stripe (solo cuando es pago)
-  stripeCustomerId     String?
-  stripeSubscriptionId String? @unique
-
-  // Trial
-  trialStartedAt DateTime?
-  trialEndsAt    DateTime?
-
-  // Pago
-  currentPeriodEnd DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-//////////////////////
-// BILLING EVENTS (WEBHOOKS)
-//////////////////////
-
-model BillingEvent {
-  id      String @id @default(cuid())
-  storeId String
-  store   Store  @relation(fields: [storeId], references: [id])
-
-  type          String
-  stripeEventId String @unique
-  payload       Json
-
-  createdAt DateTime @default(now())
-
-  @@index([storeId])
-}
-
-//////////////////////
-// AUTH.JS MODELS
-//////////////////////
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String?
-  access_token      String?
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String?
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
+  INCOMPLETE
 }

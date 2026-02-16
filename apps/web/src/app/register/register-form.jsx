@@ -35,6 +35,7 @@ export default function RegisterForm() {
       const res = await signIn("credentials", {
         email: formData.get("email"),
         password: formData.get("password"),
+        phone: formData.get("phone"),
         redirect: false,
       });
 
@@ -42,7 +43,7 @@ export default function RegisterForm() {
         throw new Error("Error al iniciar sesión automáticamente");
       }
 
-      window.location.href = "/create-store";
+      window.location.href = "/dashboard";
     } catch (err) {
       setError(err.message || "Ocurrió un error inesperado.");
     } finally {

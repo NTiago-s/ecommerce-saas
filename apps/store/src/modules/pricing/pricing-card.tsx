@@ -1,0 +1,47 @@
+import Button from "ui/button"
+
+type PricingCardProps = {
+  title: string
+  price: string
+  features: string[]
+  highlight?: boolean
+  badge?: string
+}
+
+export default function PricingCard({
+  title,
+  price,
+  features,
+  highlight,
+  badge,
+}: PricingCardProps): React.ReactElement {
+  return (
+    <div
+      className={`relative flex flex-col rounded-2xl border p-8 text-center transition ${
+        highlight ? "border-emerald-600 shadow-xl scale-105" : "border-black"
+      }`}
+    >
+      {/* BADGE */}
+      {badge && (
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-emerald-600 px-4 py-1 text-sm font-semibold text-white">
+          {badge}
+        </span>
+      )}
+
+      <h3 className="text-xl font-semibold">{title}</h3>
+      <p className="mt-4 text-4xl font-bold">{price}</p>
+
+      {/* FEATURES */}
+      <ul className="mt-6 grow space-y-2 text-gray-600">
+        {features.map((item, i) => (
+          <li key={i}>✓ {item}</li>
+        ))}
+      </ul>
+
+      {/* BOTÓN SIEMPRE ABAJO */}
+      <Button variant="primary" fullWidth className="mt-8">
+        Elegir plan
+      </Button>
+    </div>
+  )
+}
