@@ -1,6 +1,7 @@
 import { auth } from "../../auth";
 import prisma from "../../lib/prisma";
 import DashboardClientPage from "../../components/dashboard/client-page";
+import { redirect } from "next/navigation";
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -22,6 +23,11 @@ export default async function DashboardPage() {
       accounts: true,
       storeStaffs: true,
       createdAt: true,
+      subscriptions: {
+        include: {
+          plan: true,
+        },
+      },
     },
   });
 

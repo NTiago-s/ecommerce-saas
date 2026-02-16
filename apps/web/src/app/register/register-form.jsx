@@ -43,7 +43,7 @@ export default function RegisterForm() {
         throw new Error("Error al iniciar sesión automáticamente");
       }
 
-      window.location.href = "/create-store";
+      window.location.href = "/dashboard";
     } catch (err) {
       setError(err.message || "Ocurrió un error inesperado.");
     } finally {

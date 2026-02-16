@@ -12,6 +12,8 @@ import SalesChannel from "./stores/store";
 import { getMyActiveStore } from "../../app/actions/store-actions/get-my-store";
 
 export default function DashboardClientPage({ user }) {
+  console.log(user);
+
   const [activeSection, setActiveSection] = useState("profile");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);

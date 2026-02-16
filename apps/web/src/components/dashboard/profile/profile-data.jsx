@@ -4,7 +4,34 @@ import InfoItem from "../../../ui/info-item";
 import { useState } from "react";
 
 export default function ProfileData({ user }) {
+  console.log("ProfileData", user);
+
   const [loading, setLoading] = useState(false);
+
+  // Obtener la suscripción activa más reciente
+  const activeSubscription =
+    user.subscriptions?.length > 0
+      ? user.subscriptions.sort(
+          (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
+        )[0]
+      : null;
+
+  const planName = activeSubscription?.plan?.name || "Free";
+  const subscriptionStatus = activeSubscription?.status || "Activo";
+  const maxStores = activeSubscription?.plan?.maxStores ?? 1;
+
+  const statusSub =
+    subscriptionStatus === "TRIAL"
+      ? "Trial"
+      : subscriptionStatus === "ACTIVE"
+        ? "Activo"
+        : subscriptionStatus === "PAST_DUE"
+          ? "Vencido"
+          : subscriptionStatus === "CANCELED"
+            ? "Cancelado"
+            : subscriptionStatus === "INCOMPLETE"
+              ? "Incompleto"
+              : "Desconocido";
 
   function handleLogout() {
     setLoading(true);
@@ -44,13 +71,9 @@ export default function ProfileData({ user }) {
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <InfoItem label="Plan actual" value={user.plan || "Free"} />
-          <InfoItem
-            label="Estado"
-            value={user.subscriptionStatus || "Activo"}
-            badge
-          />
-          <InfoItem label="Tiendas permitidas" value={user.maxStores ?? 1} />
+          <InfoItem label="Plan actual" value={planName} />
+          <InfoItem label="Estado" value={statusSub} badge />
+          <InfoItem label="Tiendas permitidas" value={maxStores} />
         </div>
 
         <div className="pt-4">
