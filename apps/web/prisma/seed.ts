@@ -25,7 +25,6 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-  console.log("🌱 Iniciando seeding de planes para Mercado Pago...");
 
   const plans = [
     {
@@ -95,7 +94,6 @@ async function main() {
     });
   }
 
-  console.log("✅ Planes creados exitosamente en la DB.");
 }
 
 main()

@@ -4,8 +4,6 @@ import InfoItem from "../../../ui/info-item";
 import { useState } from "react";
 
 export default function ProfileData({ user }) {
-  console.log("ProfileData", user);
-
   const [loading, setLoading] = useState(false);
 
   // Obtener la suscripción activa más reciente

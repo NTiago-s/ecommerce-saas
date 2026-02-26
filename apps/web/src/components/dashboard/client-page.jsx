@@ -12,8 +12,6 @@ import SalesChannel from "./stores/store";
 import { getMyActiveStore } from "../../app/actions/store-actions/get-my-store";
 
 export default function DashboardClientPage({ user }) {
-  console.log(user);
-
   const [activeSection, setActiveSection] = useState("profile");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -56,8 +54,12 @@ export default function DashboardClientPage({ user }) {
         return <SalesChannel />;
       case "create-product":
         return <CreateProductForm />;
-      case "edit-products":
-        return <ProductGridClient products={products} />;
+      case "products":
+        return (
+          <div className="w-full">
+            <ProductGridClient products={products} />
+          </div>
+        );
     }
   };
 

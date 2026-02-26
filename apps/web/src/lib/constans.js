@@ -1,12 +1,8 @@
 export const SECTIONS = [
   { id: "profile", label: "Mis Datos", title: "Mi perfil" },
   { id: "stores", label: "Mis Tiendas", title: "Mis tiendas" },
+  { id: "products", label: "Productos", title: "Productos" },
   { id: "create-product", label: "Crear Producto", title: "Crear producto" },
-  {
-    id: "edit-products",
-    label: "Editar Productos",
-    title: "Editar productos",
-  },
   { id: "discounts", label: "Añadir Descuentos", title: "Añadir descuentos" },
   {
     id: "inventory",

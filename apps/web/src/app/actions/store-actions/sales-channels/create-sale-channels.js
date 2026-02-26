@@ -35,12 +35,6 @@ export async function createSalesChannel({
     );
   }
 
-  console.log(
-    "subscription",
-    subscription.plan.maxStores &&
-      subscription._count.stores >= subscription.plan.maxStores,
-  );
-
   // 3. VERIFICAR LÍMITE DE TIENDAS (maxStores)
   if (
     subscription.plan.maxStores &&
