@@ -5,8 +5,6 @@ import { getAdminToken } from "../../../../lib/get-admin-token";
 const backendUrl = process.env.MEDUSA_BACKEND_URL;
 
 export async function getProductsFromMedusa(regionId, salesChannelId) {
-  console.log("regionId", regionId);
-  console.log("salesChannelId", salesChannelId);
   const token = await getAdminToken();
 
   if (!salesChannelId) return [];

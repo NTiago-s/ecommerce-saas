@@ -2,24 +2,83 @@
 import { createMedusaProduct } from "../../../app/actions/store-actions/products/create-products";
 import { useState, useRef } from "react";
 
-export default function CreateProductForm() {
+function parsePriceToCents(value) {
+  if (value === null || value === undefined) return 0;
+  const normalized = String(value).trim().replace(/\s/g, "").replace(",", ".");
+  const num = Number.parseFloat(normalized);
+  if (!Number.isFinite(num) || num < 0) return 0;
+  return Math.round(num * 100);
+}
+
+export default function CreateProductForm({ onSuccess, storeId }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
-  const [activeTab, setActiveTab] = useState("Detalles");
+  const [activeTab, setActiveTab] = useState("details");
 
-  // --- ESTADOS DE LA SECCIÓN DETAILS ---
+  // Estados para el formulario
+  const [formData, setFormData] = useState({
+    title: "",
+    subtitle: "",
+    handle: "",
+    description: "",
+    material: "",
+    type: "",
+    collection: "",
+    categories: [],
+    tags: "",
+    discountable: true,
+    status: "published",
+  });
+
+  // Estados para variantes
   const [hasVariants, setHasVariants] = useState(false);
-  const [images, setImages] = useState([]); // Para previsualización o lista de archivos
-  const fileInputRef = useRef(null);
-
-  // Estado para las opciones (Color, Talla, etc.) que se activan con el toggle
   const [productOptions, setProductOptions] = useState([
     { title: "", values: "" },
   ]);
+  const [variants, setVariants] = useState([
+    {
+      title: "Default Variant",
+      sku: "",
+      ean: "",
+      upc: "",
+      barcode: "",
+      manage_inventory: true,
+      allow_backorder: false,
+      inventory_kit: false,
+      prices: {
+        usd: "",
+        eur: "",
+        ars: "",
+      },
+    },
+  ]);
 
-  const handleFileChange = (e) => {
-    const selectedFiles = Array.from(e.target.files);
-    setImages((prev) => [...prev, ...selectedFiles]);
+  // Estados para imágenes
+  const [images, setImages] = useState([]);
+  const fileInputRef = useRef(null);
+
+  const handleInputChange = (field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const handleVariantChange = (index, field, value) => {
+    const newVariants = [...variants];
+    if (field.includes(".")) {
+      const [parent, child] = field.split(".");
+      newVariants[index][parent][child] = value;
+    } else {
+      newVariants[index][field] = value;
+    }
+    setVariants(newVariants);
+  };
+
+  const handleOptionChange = (index, field, value) => {
+    const newOptions = [...productOptions];
+    newOptions[index][field] = value;
+    setProductOptions(newOptions);
   };
 
   const addOption = () => {
@@ -30,409 +89,798 @@ export default function CreateProductForm() {
     setProductOptions(productOptions.filter((_, i) => i !== index));
   };
 
+  const addVariant = () => {
+    setVariants([
+      ...variants,
+      {
+        title: `Variant ${variants.length + 1}`,
+        sku: "",
+        ean: "",
+        upc: "",
+        barcode: "",
+        manage_inventory: true,
+        allow_backorder: false,
+        inventory_kit: false,
+        prices: {
+          usd: "",
+          eur: "",
+          ars: "",
+        },
+      },
+    ]);
+  };
+
+  const removeVariant = (index) => {
+    setVariants(variants.filter((_, i) => i !== index));
+  };
+
+  const handleFileChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+
+    // Validar archivos
+    const validFiles = selectedFiles.filter((file) => {
+      // Validar tipo de archivo
+      if (!file.type.startsWith("image/")) {
+        console.warn(`Skipping non-image file: ${file.name}`);
+        return false;
+      }
+
+      // Validar tamaño (10MB máximo)
+      const maxSize = 10 * 1024 * 1024; // 10MB in bytes
+      if (file.size > maxSize) {
+        console.warn(
+          `Skipping oversized file: ${file.name} (${file.size} bytes)`,
+        );
+        return false;
+      }
+
+      return true;
+    });
+
+    if (validFiles.length !== selectedFiles.length) {
+      const invalidCount = selectedFiles.length - validFiles.length;
+      setMessage(
+        `⚠️ Se omitieron ${invalidCount} archivo(s) inválidos. Solo se permiten imágenes de hasta 10MB.`,
+      );
+      setTimeout(() => setMessage(""), 5000);
+    }
+
+    setImages((prev) => [...prev, ...validFiles]);
+  };
+
+  const removeImage = (index) => {
+    setImages(images.filter((_, i) => i !== index));
+  };
+
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    const formData = new FormData(e.currentTarget);
-    // Nota: El formData capturará automáticamente los archivos del input name="images"
-    const result = await createMedusaProduct(formData);
-    setLoading(false);
-    if (result.success) setMessage("✅ Producto creado");
+    setMessage("");
+
+    try {
+      // Preparar opciones del producto
+      const options = hasVariants
+        ? productOptions
+            .filter((opt) => opt.title && opt.values)
+            .map((opt) => ({
+              title: opt.title,
+              values: opt.values
+                .split(",")
+                .map((v) => v.trim())
+                .filter((v) => v),
+            }))
+        : [{ title: "Default", values: ["Default"] }];
+
+      // Preparar variantes
+      const preparedVariants =
+        hasVariants && options.length > 0
+          ? generateVariantsFromOptions(options, variants[0])
+          : [
+              {
+                title: formData.title || "Default Variant",
+                sku: variants[0]?.sku || `sku-${Date.now()}`,
+                manage_inventory: variants[0]?.manage_inventory ?? true,
+                allow_backorder: variants[0]?.allow_backorder ?? false,
+                prices: Object.entries(variants[0]?.prices || {})
+                  .filter(([_, price]) => price)
+                  .map(([currency, price]) => ({
+                    amount: parsePriceToCents(price),
+                    currency_code: currency.toLowerCase(),
+                  })),
+              },
+            ];
+
+      const productData = {
+        ...formData,
+        options,
+        variants: preparedVariants,
+      };
+
+      const submitData = new FormData();
+      submitData.append("productData", JSON.stringify(productData));
+      for (const image of images) {
+        submitData.append("images", image);
+      }
+
+      const result = await createMedusaProduct(submitData, storeId);
+
+      if (result.success) {
+        setMessage("✅ Producto creado exitosamente");
+        if (onSuccess) {
+          onSuccess(result.data);
+        }
+        // Reset form
+        setFormData({
+          title: "",
+          subtitle: "",
+          handle: "",
+          description: "",
+          material: "",
+          type: "",
+          collection: "",
+          categories: [],
+          tags: "",
+          discountable: true,
+          status: "published",
+        });
+        setImages([]);
+        setVariants([
+          {
+            title: "Default Variant",
+            sku: "",
+            ean: "",
+            upc: "",
+            barcode: "",
+            manage_inventory: true,
+            allow_backorder: false,
+            inventory_kit: false,
+            prices: { usd: "", eur: "", ars: "" },
+          },
+        ]);
+      } else {
+        setMessage(`❌ Error: ${result.error}`);
+      }
+    } catch (error) {
+      setMessage(`❌ Error: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   }
 
+  // Función para generar variantes basadas en opciones
+  const generateVariantsFromOptions = (options, baseVariant) => {
+    // Esta es una versión simplificada - en producción necesitarías generar
+    // todas las combinaciones posibles de opciones
+    return [
+      {
+        title: `${options.map((opt) => opt.values[0]).join(" / ")}`,
+        sku: baseVariant?.sku || `sku-${Date.now()}`,
+        manage_inventory: baseVariant?.manage_inventory ?? true,
+        allow_backorder: baseVariant?.allow_backorder ?? false,
+        prices: Object.entries(baseVariant?.prices || {})
+          .filter(([_, price]) => price)
+          .map(([currency, price]) => ({
+            amount: parsePriceToCents(price),
+            currency_code: currency.toLowerCase(),
+          })),
+        options: options.map((opt) => ({
+          value: opt.values[0],
+          option_id: opt.title.toLowerCase().replace(/\s+/g, "_"),
+        })),
+      },
+    ];
+  };
+
   return (
-    <div className="max-w-6xl mx-auto bg-[#111111] text-gray-200 min-h-screen p-6 rounded-xl border border-gray-800 my-10 font-sans">
-      {/* TABS SUPERIORES */}
-      <div className="flex items-center border-b border-gray-800 mb-8">
-        {["Detalles", "Organizacion", "Variantes"].map((tab) => (
+    <div className="max-w-6xl mx-auto bg-white rounded-xl shadow-lg">
+      {/* Header */}
+      <div className="border-b border-gray-200 p-6">
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Crear Nuevo Producto
+        </h1>
+        <p className="text-gray-600 mt-1">
+          Agrega un nuevo producto a tu catálogo
+        </p>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex border-b border-gray-200">
+        {[
+          { id: "details", label: "Detalles" },
+          { id: "organization", label: "Organización" },
+          { id: "variants", label: "Variantes" },
+          { id: "media", label: "Multimedia" },
+        ].map((tab) => (
           <button
-            key={tab}
+            key={tab.id}
             type="button"
-            onClick={() => setActiveTab(tab)}
-            className={`px-6 pb-4 text-sm font-medium transition-colors relative ${
-              activeTab === tab ? "text-blue-500" : "text-gray-500"
+            onClick={() => setActiveTab(tab.id)}
+            className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${
+              activeTab === tab.id
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
           >
-            {activeTab === tab && (
-              <span className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500" />
-            )}
-            {tab}
+            {tab.label}
           </button>
         ))}
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-12">
-        {/* --- SECCIÓN: DETAILS --- */}
-        {activeTab === "Detalles" && (
-          <div className="space-y-10 animate-in fade-in">
-            {/* 1. GENERAL */}
-            <section>
-              <h3 className="text-lg font-semibold mb-6">General</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label className="block text-[11px] text-gray-400 uppercase mb-2">
-                    Titulo
-                  </label>
-                  <input
-                    name="title"
-                    placeholder="Winter jacket"
-                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-lg p-2.5 outline-none focus:border-gray-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-gray-400 uppercase mb-2">
-                    Subtitulo (Opcional)
-                  </label>
-                  <input
-                    name="subtitle"
-                    placeholder="Warm and cosy"
-                    className="w-full bg-[#1a1a1a] border border-gray-800 rounded-lg p-2.5 outline-none focus:border-gray-600"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] text-gray-400 uppercase mb-2">
-                    palabra clave (Opcional)
-                  </label>
-                  <div className="flex items-center bg-[#1a1a1a] border border-gray-800 rounded-lg px-3 group focus-within:border-gray-600">
-                    <span className="text-gray-500 mr-2 text-sm">/</span>
-                    <input
-                      name="handle"
-                      placeholder="winter-jacket"
-                      className="w-full bg-transparent py-2.5 outline-none text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
-              <div className="mt-6">
-                <label className="block text-[11px] text-gray-400 uppercase mb-2">
-                  Descripcion (Opcional)
+      <form onSubmit={handleSubmit} className="p-6">
+        {/* Tab: Detalles */}
+        {activeTab === "details" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Título del Producto *
                 </label>
-                <textarea
-                  name="description"
-                  rows={3}
-                  placeholder="A warm and cozy jacket"
-                  className="w-full bg-[#1a1a1a] border border-gray-800 rounded-lg p-2.5 outline-none focus:border-gray-600 resize-none"
-                />
-              </div>
-            </section>
-
-            {/* 2. MEDIA (Input File) */}
-            <section>
-              <h3 className="text-sm font-semibold mb-4 text-gray-400">
-                Archivos (Opcional)
-              </h3>
-              <div
-                onClick={() => fileInputRef.current.click()}
-                className="border-2 border-dashed border-gray-800 rounded-xl p-10 text-center hover:bg-[#161616] transition cursor-pointer group"
-              >
                 <input
-                  type="file"
-                  name="images"
-                  multiple
-                  ref={fileInputRef}
-                  onChange={handleFileChange}
-                  className="hidden"
+                  type="text"
+                  value={formData.title}
+                  onChange={(e) => handleInputChange("title", e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ej: Camiseta de Algodón"
+                  required
                 />
-                <div className="flex flex-col items-center">
-                  <span className="text-gray-400 text-sm mb-1 font-medium">
-                    ⬆ Subir Imagenes
-                  </span>
-                  <p className="text-xs text-gray-500">
-                    Arrastra y suelta imagenes aqui o haz click para subir.
-                  </p>
-                  {images.length > 0 && (
-                    <p className="mt-2 text-blue-400 text-xs font-semibold">
-                      {images.length} archivos seleccionados
-                    </p>
-                  )}
-                </div>
-              </div>
-            </section>
-
-            {/* 3. VARIANTS TOGGLE */}
-            <section className="space-y-6">
-              <div className="bg-[#1a1a1a] p-5 rounded-xl border border-gray-800 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium">
-                    Yes, this is a product with variants
-                  </p>
-                  <p className="text-[11px] text-gray-500 font-medium">
-                    When unchecked, we will create a default variant for you
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setHasVariants(!hasVariants)}
-                  className={`w-10 h-5 rounded-full transition-all relative ${hasVariants ? "bg-blue-600" : "bg-gray-700"}`}
-                >
-                  <div
-                    className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${hasVariants ? "left-6" : "left-1"}`}
-                  />
-                </button>
               </div>
 
-              {/* SECCIÓN DINÁMICA DE OPCIONES (Aparece al activar el toggle) */}
-              {hasVariants && (
-                <div className="space-y-6 pt-4 animate-in slide-in-from-top-2">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <h4 className="text-sm font-semibold">Product options</h4>
-                      <p className="text-[11px] text-gray-500 font-medium">
-                        Define the options for the product, e.g. color, size,
-                        etc.
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={addOption}
-                      className="bg-[#242424] px-4 py-1.5 rounded-lg text-xs font-semibold border border-gray-700 hover:bg-[#2a2a2a]"
-                    >
-                      Add
-                    </button>
-                  </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Subtítulo
+                </label>
+                <input
+                  type="text"
+                  value={formData.subtitle}
+                  onChange={(e) =>
+                    handleInputChange("subtitle", e.target.value)
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Ej: Comodidad y estilo"
+                />
+              </div>
+            </div>
 
-                  {productOptions.map((opt, index) => (
-                    <div
-                      key={index}
-                      className="bg-[#1a1a1a] p-4 rounded-xl border border-gray-800 relative group"
-                    >
-                      <div className="grid grid-cols-12 gap-4 items-center">
-                        <div className="col-span-2 text-[11px] text-gray-500 font-bold uppercase">
-                          Title
-                        </div>
-                        <input
-                          value={opt.title}
-                          onChange={(e) => {
-                            const newOps = [...productOptions];
-                            newOps[index].title = e.target.value;
-                            setProductOptions(newOps);
-                          }}
-                          className="col-span-9 bg-transparent border-b border-gray-800 py-1 outline-none focus:border-blue-500 text-sm"
-                          placeholder="Color"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => removeOption(index)}
-                          className="col-span-1 text-gray-500 hover:text-red-500 text-right"
-                        >
-                          ✕
-                        </button>
-                        <div className="col-span-2 text-[11px] text-gray-500 font-bold uppercase">
-                          Values
-                        </div>
-                        <input
-                          value={opt.values}
-                          onChange={(e) => {
-                            const newOps = [...productOptions];
-                            newOps[index].values = e.target.value;
-                            setProductOptions(newOps);
-                          }}
-                          className="col-span-9 bg-transparent border-b border-gray-800 py-1 outline-none focus:border-blue-500 text-sm"
-                          placeholder="Red, Blue, Green"
-                        />
-                      </div>
-                    </div>
-                  ))}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Handle (URL)
+              </label>
+              <div className="flex">
+                <span className="inline-flex items-center px-3 text-sm text-gray-900 bg-gray-200 border border-r-0 border-gray-300 rounded-l-lg">
+                  /
+                </span>
+                <input
+                  type="text"
+                  value={formData.handle}
+                  onChange={(e) => handleInputChange("handle", e.target.value)}
+                  className="flex-1 border border-gray-300 rounded-r-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="camiseta-algodon"
+                />
+              </div>
+            </div>
 
-                  <div className="pt-6 border-t border-gray-800">
-                    <h4 className="text-sm font-semibold mb-1">
-                      Product variants
-                    </h4>
-                    <p className="text-[11px] text-gray-500 font-medium mb-4">
-                      This ranking will affect the variants' order in your
-                      storefront.
-                    </p>
-                    <div className="bg-[#1a1a1a] border border-gray-800 rounded-lg p-4 flex items-center space-x-3">
-                      <span className="text-gray-500">ℹ</span>
-                      <p className="text-[11px] text-gray-400 font-medium">
-                        Add options to create variants.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </section>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Descripción
+              </label>
+              <textarea
+                value={formData.description}
+                onChange={(e) =>
+                  handleInputChange("description", e.target.value)
+                }
+                rows={4}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Describe tu producto en detalle..."
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Material
+              </label>
+              <input
+                type="text"
+                value={formData.material}
+                onChange={(e) => handleInputChange("material", e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ej: Algodón 100%"
+              />
+            </div>
           </div>
         )}
 
-        {activeTab === "Organizacion" && (
-          <div className="space-y-8 animate-in fade-in duration-300">
-            <h3 className="text-lg font-semibold mb-6">Organizacion</h3>
-            <section className="bg-[#1a1a1a] p-5 rounded-xl border border-gray-800 flex items-center justify-between">
+        {/* Tab: Organización */}
+        {activeTab === "organization" && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <p className="font-medium text-sm">
-                  Discountable <span className="text-gray-500">(Optional)</span>
-                </p>
-                <p className="text-xs text-gray-500">
-                  When unchecked, discounts will not be applied to this product
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tipo
+                </label>
+                <select
+                  value={formData.type}
+                  onChange={(e) => handleInputChange("type", e.target.value)}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Seleccionar tipo...</option>
+                  <option value="clothing">Ropa</option>
+                  <option value="accessories">Accesorios</option>
+                  <option value="electronics">Electrónica</option>
+                  <option value="home">Hogar</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Colección
+                </label>
+                <select
+                  value={formData.collection}
+                  onChange={(e) =>
+                    handleInputChange("collection", e.target.value)
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">Seleccionar colección...</option>
+                  <option value="summer">Verano</option>
+                  <option value="winter">Invierno</option>
+                  <option value="new-arrival">Nuevos Llegados</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Etiquetas
+              </label>
+              <input
+                type="text"
+                value={formData.tags}
+                onChange={(e) => handleInputChange("tags", e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Ej: moda, casual, urbano"
+              />
+            </div>
+
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <h4 className="font-medium text-gray-900">
+                  Aplicar descuentos
+                </h4>
+                <p className="text-sm text-gray-600">
+                  Permitir que este producto tenga descuentos aplicados
                 </p>
               </div>
               <button
                 type="button"
-                className="w-10 h-5 bg-blue-600 rounded-full relative"
+                onClick={() =>
+                  handleInputChange("discountable", !formData.discountable)
+                }
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  formData.discountable ? "bg-blue-600" : "bg-gray-200"
+                }`}
               >
-                <div className="absolute top-1 right-1 w-3 h-3 bg-white rounded-full" />
-              </button>
-            </section>
-
-            <div className="grid grid-cols-2 gap-8">
-              <div>
-                <label className="block text-xs font-medium text-gray-400 uppercase mb-2">
-                  Type (Optional)
-                </label>
-                <select
-                  name="type"
-                  className="w-full bg-[#1a1a1a] border border-gray-800 rounded-lg p-2.5 outline-none appearance-none"
-                >
-                  <option value="">Select type...</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-400 uppercase mb-2">
-                  Collection (Optional)
-                </label>
-                <select
-                  name="collection"
-                  className="w-full bg-[#1a1a1a] border border-gray-800 rounded-lg p-2.5 outline-none appearance-none"
-                >
-                  <option value="">Select collection...</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-400 uppercase mb-2">
-                  Categories (Optional)
-                </label>
-                <select
-                  name="categories"
-                  className="w-full bg-[#1a1a1a] border border-gray-800 rounded-lg p-2.5 outline-none appearance-none"
-                >
-                  <option value="">Select categories...</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-400 uppercase mb-2">
-                  Tags (Optional)
-                </label>
-                <input
-                  name="tags"
-                  type="text"
-                  placeholder="Search tags..."
-                  className="w-full bg-[#1a1a1a] border border-gray-800 rounded-lg p-2.5 outline-none"
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    formData.discountable ? "translate-x-6" : "translate-x-1"
+                  }`}
                 />
-              </div>
-            </div>
-
-            <div className="pt-4">
-              <label className="block text-xs font-medium text-gray-400 uppercase mb-2">
-                Sales channels (Optional)
-              </label>
-              <div className="bg-[#1a1a1a] border border-gray-800 rounded-lg p-3 flex items-center justify-between">
-                <span className="bg-gray-800 px-2 py-1 rounded text-xs text-gray-300 border border-gray-700">
-                  Default Sales Channel
-                </span>
-                <button
-                  type="button"
-                  className="text-blue-500 text-xs font-semibold hover:text-blue-400"
-                >
-                  Add
-                </button>
-              </div>
+              </button>
             </div>
           </div>
         )}
 
-        {/* --- SECCIÓN 3: VARIANTS (Basado en imagen 4) --- */}
-        {activeTab === "Variantes" && (
-          <div className="space-y-6 animate-in fade-in duration-300">
-            <h3 className="text-lg font-semibold mb-4">Variantes</h3>
-            <div className="overflow-x-auto rounded-xl border border-gray-800">
-              <table className="w-full text-left text-sm border-separate border-spacing-0">
-                <thead className="bg-[#1a1a1a] text-gray-400 text-[10px] uppercase tracking-wider">
-                  <tr>
-                    <th className="p-4 border-b border-gray-800">Title</th>
-                    <th className="p-4 border-b border-gray-800">SKU</th>
-                    <th className="p-4 border-b border-gray-800 text-center">
-                      Inventory
-                    </th>
-                    <th className="p-4 border-b border-gray-800">Price ARS</th>
-                    <th className="p-4 border-b border-gray-800">Price USD</th>
-                    <th className="p-4 border-b border-gray-800">Price EUR</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-800">
-                  <tr className="hover:bg-white/2 transition-colors">
-                    <td className="p-4 text-blue-400">Default variant</td>
-                    <td className="p-4">
+        {/* Tab: Variantes */}
+        {activeTab === "variants" && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <h4 className="font-medium text-gray-900">
+                  ¿Este producto tiene variantes?
+                </h4>
+                <p className="text-sm text-gray-600">
+                  Ej: diferentes colores, tallas, etc.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setHasVariants(!hasVariants)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                  hasVariants ? "bg-blue-600" : "bg-gray-200"
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                    hasVariants ? "translate-x-6" : "translate-x-1"
+                  }`}
+                />
+              </button>
+            </div>
+
+            {hasVariants && (
+              <div className="space-y-4">
+                <div className="flex justify-between items-center">
+                  <h4 className="font-medium text-gray-900">
+                    Opciones del Producto
+                  </h4>
+                  <button
+                    type="button"
+                    onClick={addOption}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    + Agregar Opción
+                  </button>
+                </div>
+
+                {productOptions.map((option, index) => (
+                  <div
+                    key={index}
+                    className="border border-gray-200 rounded-lg p-4"
+                  >
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Título de la Opción
+                        </label>
+                        <input
+                          type="text"
+                          value={option.title}
+                          onChange={(e) =>
+                            handleOptionChange(index, "title", e.target.value)
+                          }
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Ej: Color"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Valores (separados por coma)
+                        </label>
+                        <input
+                          type="text"
+                          value={option.values}
+                          onChange={(e) =>
+                            handleOptionChange(index, "values", e.target.value)
+                          }
+                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Ej: Rojo, Azul, Verde"
+                        />
+                      </div>
+                    </div>
+                    {productOptions.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeOption(index)}
+                        className="mt-2 text-red-600 hover:text-red-800 text-sm"
+                      >
+                        Eliminar opción
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h4 className="font-medium text-gray-900">
+                  {hasVariants
+                    ? "Variantes del Producto"
+                    : "Información del Producto"}
+                </h4>
+                {hasVariants && (
+                  <button
+                    type="button"
+                    onClick={addVariant}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                  >
+                    + Agregar Variante
+                  </button>
+                )}
+              </div>
+
+              {variants.map((variant, index) => (
+                <div
+                  key={index}
+                  className="border border-gray-200 rounded-lg p-4"
+                >
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Título
+                      </label>
                       <input
-                        name="sku"
-                        placeholder="SKU-XXX"
-                        className="bg-transparent border-b border-gray-800 outline-none w-20 focus:border-blue-500"
+                        type="text"
+                        value={variant.title}
+                        onChange={(e) =>
+                          handleVariantChange(index, "title", e.target.value)
+                        }
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
-                    </td>
-                    <td className="p-4 text-center">
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        SKU
+                      </label>
+                      <input
+                        type="text"
+                        value={variant.sku}
+                        onChange={(e) =>
+                          handleVariantChange(index, "sku", e.target.value)
+                        }
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        EAN
+                      </label>
+                      <input
+                        type="text"
+                        value={variant.ean}
+                        onChange={(e) =>
+                          handleVariantChange(index, "ean", e.target.value)
+                        }
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        UPC
+                      </label>
+                      <input
+                        type="text"
+                        value={variant.upc}
+                        onChange={(e) =>
+                          handleVariantChange(index, "upc", e.target.value)
+                        }
+                        className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Precio USD *
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-gray-500">
+                          $
+                        </span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={variant.prices.usd}
+                          onChange={(e) =>
+                            handleVariantChange(
+                              index,
+                              "prices.usd",
+                              e.target.value,
+                            )
+                          }
+                          className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0.00"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Precio EUR
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-gray-500">
+                          €
+                        </span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={variant.prices.eur}
+                          onChange={(e) =>
+                            handleVariantChange(
+                              index,
+                              "prices.eur",
+                              e.target.value,
+                            )
+                          }
+                          className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Precio ARS
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-2 text-gray-500">
+                          $
+                        </span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={variant.prices.ars}
+                          onChange={(e) =>
+                            handleVariantChange(
+                              index,
+                              "prices.ars",
+                              e.target.value,
+                            )
+                          }
+                          className="w-full border border-gray-300 rounded-lg pl-8 pr-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center space-x-6 mt-4">
+                    <label className="flex items-center">
                       <input
                         type="checkbox"
-                        defaultChecked
-                        className="accent-blue-600"
+                        checked={variant.manage_inventory}
+                        onChange={(e) =>
+                          handleVariantChange(
+                            index,
+                            "manage_inventory",
+                            e.target.checked,
+                          )
+                        }
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                       />
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-600">$</span>
-                        <input
-                          name="price_ars"
-                          placeholder="0.00"
-                          className="bg-transparent outline-none w-16"
-                        />
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-600">$</span>
-                        <input
-                          name="price_usd"
-                          placeholder="0.00"
-                          className="bg-transparent outline-none w-16"
-                        />
-                      </div>
-                    </td>
-                    <td className="p-4">
-                      <div className="flex items-center space-x-1">
-                        <span className="text-gray-600">€</span>
-                        <input
-                          name="price_eur"
-                          placeholder="0.00"
-                          className="bg-transparent outline-none w-16"
-                        />
-                      </div>
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                      <span className="ml-2 text-sm text-gray-700">
+                        Gestionar inventario
+                      </span>
+                    </label>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={variant.allow_backorder}
+                        onChange={(e) =>
+                          handleVariantChange(
+                            index,
+                            "allow_backorder",
+                            e.target.checked,
+                          )
+                        }
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">
+                        Permitir pedidos pendientes
+                      </span>
+                    </label>
+                  </div>
+
+                  {variants.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeVariant(index)}
+                      className="mt-4 text-red-600 hover:text-red-800 text-sm"
+                    >
+                      Eliminar variante
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
         )}
 
-        {/* FOOTER ACCIONES */}
-        <div className="flex justify-end items-center space-x-4 pt-8 border-t border-gray-800">
+        {/* Tab: Multimedia */}
+        {activeTab === "media" && (
+          <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Imágenes del Producto
+              </label>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center hover:border-gray-400 cursor-pointer transition-colors"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
+                <div className="flex flex-col items-center">
+                  <svg
+                    className="w-12 h-12 text-gray-400 mb-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+                    />
+                  </svg>
+                  <p className="text-gray-600 mb-2">
+                    Haz clic para subir imágenes
+                  </p>
+                  <p className="text-sm text-gray-500">
+                    o arrastra y suelta archivos aquí
+                  </p>
+                  <p className="text-xs text-gray-400 mt-2">
+                    PNG, JPG, GIF hasta 10MB
+                  </p>
+                </div>
+              </div>
+
+              {images.length > 0 && (
+                <div className="mt-6">
+                  <h4 className="font-medium text-gray-900 mb-4">
+                    Imágenes seleccionadas ({images.length})
+                  </h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                    {images.map((image, index) => (
+                      <div key={index} className="relative group">
+                        <img
+                          src={image.url || URL.createObjectURL(image)}
+                          alt={`Preview ${index + 1}`}
+                          className="w-full h-24 object-cover rounded-lg border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeImage(index)}
+                          className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        >
+                          <svg
+                            className="w-4 h-4"
+                            fill="none"
+                            stroke="currentColor"
+                            viewBox="0 0 24 24"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              strokeWidth={2}
+                              d="M6 18L18 6M6 6l12 12"
+                            />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Mensaje de feedback */}
+        {message && (
+          <div
+            className={`p-4 rounded-lg ${
+              message.includes("✅")
+                ? "bg-green-50 text-green-800 border border-green-200"
+                : "bg-red-50 text-red-800 border border-red-200"
+            }`}
+          >
+            {message}
+          </div>
+        )}
+
+        {/* Botones de acción */}
+        <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
           <button
             type="button"
-            className="text-sm font-medium text-gray-500 hover:text-white transition"
+            onClick={() => window.history.back()}
+            className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
           >
-            Cancel
+            Cancelar
           </button>
           <button
-            type="button"
-            className="bg-[#1a1a1a] px-4 py-2 rounded-lg text-sm font-medium border border-gray-800 hover:bg-[#222]"
+            type="submit"
+            disabled={loading || !formData.title}
+            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Save as draft
-          </button>
-          <button
-            type="button"
-            onClick={() => setActiveTab("Organize")}
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg text-sm font-semibold hover:bg-blue-700 transition"
-          >
-            Continue
+            {loading ? "Creando..." : "Crear Producto"}
           </button>
         </div>
       </form>
