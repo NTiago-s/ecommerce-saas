@@ -1,13 +1,18 @@
 "use client";
 import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import ProductGridClient from "./product-grid-client";
-import CreateProductForm from "./form-create-product-new";
+import CreateProductForm from "./form-create-product";
 import EditProductForm from "./form-edit-product";
 
-export default function ProductsClientPage({ products, store }) {
+export default function ProductsClientPage({ products, store, stores }) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [productList, setProductList] = useState(products);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const selectedStoreId = store?.id;
 
   const handleProductCreated = (newProduct) => {
     setProductList((prev) => [newProduct, ...prev]);
@@ -41,15 +46,36 @@ export default function ProductsClientPage({ products, store }) {
               Gestiona los productos de tu tienda "{store.name}"
             </p>
           </div>
-          <button
-            onClick={() => {
-              setShowCreateForm(true);
-              setEditingProduct(null);
-            }}
-            className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-          >
-            + Nuevo Producto
-          </button>
+          <div className="flex items-center gap-3">
+            {Array.isArray(stores) && stores.length > 1 && (
+              <select
+                value={selectedStoreId}
+                onChange={(e) => {
+                  const nextId = e.target.value;
+                  const next = new URLSearchParams(searchParams?.toString());
+                  next.set("storeId", nextId);
+                  router.push(`/dashboard/products?${next.toString()}`);
+                }}
+                className="border border-gray-300 rounded-lg px-3 py-2 bg-white"
+              >
+                {stores.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
+              </select>
+            )}
+
+            <button
+              onClick={() => {
+                setShowCreateForm(true);
+                setEditingProduct(null);
+              }}
+              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+            >
+              + Nuevo Producto
+            </button>
+          </div>
         </div>
 
         {/* Forms */}
@@ -64,7 +90,10 @@ export default function ProductsClientPage({ products, store }) {
                 ✕
               </button>
             </div>
-            <CreateProductForm onSuccess={handleProductCreated} />
+            <CreateProductForm
+              onSuccess={handleProductCreated}
+              storeId={selectedStoreId}
+            />
           </div>
         )}
 
@@ -82,6 +111,7 @@ export default function ProductsClientPage({ products, store }) {
             <EditProductForm
               product={editingProduct}
               onSuccess={handleProductUpdated}
+              storeId={selectedStoreId}
             />
           </div>
         )}
@@ -116,6 +146,7 @@ export default function ProductsClientPage({ products, store }) {
                   products={productList}
                   onEdit={handleEditProduct}
                   onDelete={handleProductDeleted}
+                  storeId={selectedStoreId}
                 />
               </div>
             )}

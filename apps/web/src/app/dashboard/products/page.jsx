@@ -4,7 +4,7 @@ import { getProductsFromMedusa } from "../../../app/actions/store-actions/produc
 import ProductsClientPage from "../../../components/dashboard/products/products-client-page";
 import { redirect } from "next/navigation";
 
-export default async function ProductsPage() {
+export default async function ProductsPage({ searchParams }) {
   const session = await auth();
 
   if (!session) {
@@ -30,8 +30,12 @@ export default async function ProductsPage() {
     redirect("/dashboard");
   }
 
-  const store = user.stores[0];
-  
+  const requestedStoreId = searchParams?.storeId;
+  const store =
+    (requestedStoreId
+      ? user.stores.find((s) => s.id === requestedStoreId)
+      : null) || user.stores[0];
+
   let products = [];
   try {
     products = await getProductsFromMedusa(null, store.medusaSalesChannelId);
@@ -39,5 +43,11 @@ export default async function ProductsPage() {
     console.error("Error fetching products:", error);
   }
 
-  return <ProductsClientPage products={products} store={store} />;
+  return (
+    <ProductsClientPage
+      products={products}
+      store={store}
+      stores={user.stores}
+    />
+  );
 }

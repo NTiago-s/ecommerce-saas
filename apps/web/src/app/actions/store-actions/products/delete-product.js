@@ -4,14 +4,17 @@ import { getAdminToken } from "../../../../lib/get-admin-token";
 import { prisma } from "../../../../lib/prisma";
 import { auth } from "../../../../auth";
 
-export async function deleteMedusaProduct(productId) {
+export async function deleteMedusaProduct(productId, storeId) {
   const session = await auth();
   const userId = session?.user?.id;
 
   if (!userId) return { success: false, error: "No autenticado" };
 
   const userStore = await prisma.store.findFirst({
-    where: { ownerId: userId },
+    where: {
+      ownerId: userId,
+      ...(storeId ? { id: storeId } : {}),
+    },
     select: { medusaSalesChannelId: true },
   });
 
@@ -43,14 +46,17 @@ export async function deleteMedusaProduct(productId) {
   }
 }
 
-export async function toggleProductStatus(productId) {
+export async function toggleProductStatus(productId, storeId) {
   const session = await auth();
   const userId = session?.user?.id;
 
   if (!userId) return { success: false, error: "No autenticado" };
 
   const userStore = await prisma.store.findFirst({
-    where: { ownerId: userId },
+    where: {
+      ownerId: userId,
+      ...(storeId ? { id: storeId } : {}),
+    },
     select: { medusaSalesChannelId: true },
   });
 
@@ -63,19 +69,23 @@ export async function toggleProductStatus(productId) {
 
   try {
     // First get current product
-    const getProductResponse = await fetch(`${backendUrl}/admin/products/${productId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+    const getProductResponse = await fetch(
+      `${backendUrl}/admin/products/${productId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (!getProductResponse.ok) {
       throw new Error("No se pudo obtener el producto actual");
     }
 
     const currentProduct = await getProductResponse.json();
-    const newStatus = currentProduct.product.status === 'published' ? 'draft' : 'published';
+    const newStatus =
+      currentProduct.product.status === "published" ? "draft" : "published";
 
     // Update product status
     const response = await fetch(`${backendUrl}/admin/products/${productId}`, {

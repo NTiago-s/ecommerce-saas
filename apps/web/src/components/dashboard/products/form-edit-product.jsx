@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { updateMedusaProduct } from "../../../app/actions/store-actions/products/update-product";
 
-export default function EditProductForm({ product, onSuccess }) {
+export default function EditProductForm({ product, onSuccess, storeId }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("Detalles");
@@ -13,7 +13,7 @@ export default function EditProductForm({ product, onSuccess }) {
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    
+
     const formData = new FormData(e.currentTarget);
     const productData = {
       title: formData.get("title"),
@@ -22,9 +22,9 @@ export default function EditProductForm({ product, onSuccess }) {
       sku: formData.get("sku"),
     };
 
-    const result = await updateMedusaProduct(product.id, productData);
+    const result = await updateMedusaProduct(product.id, productData, storeId);
     setLoading(false);
-    
+
     if (result.success) {
       setMessage("✅ Producto actualizado");
       onSuccess(result.data);
@@ -42,7 +42,9 @@ export default function EditProductForm({ product, onSuccess }) {
             type="button"
             onClick={() => setActiveTab(tab)}
             className={`px-6 pb-4 text-sm font-medium transition-colors relative ${
-              activeTab === tab ? "text-blue-600 border-b-2 border-blue-600" : "text-gray-500"
+              activeTab === tab
+                ? "text-blue-600 border-b-2 border-blue-600"
+                : "text-gray-500"
             }`}
           >
             {tab}
@@ -144,9 +146,13 @@ export default function EditProductForm({ product, onSuccess }) {
         )}
 
         {message && (
-          <div className={`p-4 rounded-lg ${
-            message.includes("✅") ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
-          }`}>
+          <div
+            className={`p-4 rounded-lg ${
+              message.includes("✅")
+                ? "bg-green-50 text-green-800"
+                : "bg-red-50 text-red-800"
+            }`}
+          >
             {message}
           </div>
         )}

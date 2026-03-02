@@ -4,15 +4,28 @@ import { getAdminToken } from "../../../../lib/get-admin-token";
 import { prisma } from "../../../../lib/prisma";
 import { auth } from "../../../../auth";
 
-export async function createMedusaProduct(productData) {
+function parsePriceToCents(value) {
+  if (value === null || value === undefined) return 0;
+
+  const normalized = String(value).trim().replace(/\s/g, "").replace(",", ".");
+
+  const num = Number.parseFloat(normalized);
+  if (!Number.isFinite(num) || num < 0) return 0;
+  return Math.round(num * 100);
+}
+
+export async function createMedusaProduct(formData, storeId) {
   const session = await auth();
   const userId = session?.user?.id;
 
   if (!userId) return { success: false, error: "No autenticado" };
 
   const userStore = await prisma.store.findFirst({
-    where: { ownerId: userId },
-    select: { medusaSalesChannelId: true },
+    where: {
+      ownerId: userId,
+      ...(storeId ? { id: storeId } : {}),
+    },
+    select: { id: true, medusaSalesChannelId: true },
   });
 
   if (!userStore?.medusaSalesChannelId) {
@@ -23,6 +36,10 @@ export async function createMedusaProduct(productData) {
   const backendUrl = process.env.MEDUSA_BACKEND_URL;
 
   try {
+    const productDataRaw = formData.get("productData");
+    const productData = productDataRaw ? JSON.parse(productDataRaw) : {};
+    const images = formData.getAll("images");
+
     // Preparar el payload según la estructura de Medusa v2
     const payload = {
       title: productData.title,
@@ -46,13 +63,40 @@ export async function createMedusaProduct(productData) {
           allow_backorder: false,
           prices: [
             {
-              amount: Math.round(parseFloat(productData.price || 0) * 100),
+              amount: parsePriceToCents(productData.price || 0),
               currency_code: "usd",
             },
           ],
         },
       ],
     };
+
+    if (Array.isArray(payload.variants)) {
+      payload.variants = payload.variants.map((v) => {
+        const prices = Array.isArray(v?.prices) ? v.prices : [];
+        const normalizedPrices = prices
+          .filter((p) => p && (p.amount !== undefined || p.value !== undefined))
+          .map((p) => {
+            const currency = (p.currency_code || p.currency || "usd")
+              .toString()
+              .toLowerCase();
+            const amount =
+              typeof p.amount === "number"
+                ? p.amount
+                : parsePriceToCents(p.amount ?? p.value);
+            return {
+              ...p,
+              currency_code: currency,
+              amount,
+            };
+          });
+
+        return {
+          ...v,
+          prices: normalizedPrices,
+        };
+      });
+    }
 
     // Agregar metadatos si existen
     if (
@@ -89,37 +133,11 @@ export async function createMedusaProduct(productData) {
     }
 
     // Si hay imágenes, subirlas después de crear el producto
-    if (productData.images && productData.images.length > 0) {
-      console.log(
-        `Processing ${productData.images.length} images for upload...`,
-      );
-
-      // Verificar que el endpoint de upload esté disponible
-      try {
-        const testResponse = await fetch(`${backendUrl}/admin/uploads`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({}),
-        });
-
-        if (testResponse.status === 404) {
-          console.warn("Upload endpoint not found, using alternative endpoint");
-        }
-      } catch (testError) {
-        console.log(
-          "Upload endpoint test failed, continuing with upload attempt",
-        );
-      }
+    if (images && images.length > 0) {
+      console.log(`Processing ${images.length} images for upload...`);
 
       try {
-        await uploadProductImages(
-          data.product.id,
-          productData.images,
-          token,
-          backendUrl,
-        );
+        await uploadProductImages(data.product.id, images, token, backendUrl);
         console.log("All images uploaded successfully");
       } catch (imageError) {
         console.error("Error uploading images:", imageError);
@@ -139,22 +157,30 @@ async function uploadProductImages(productId, images, token, backendUrl) {
     `Starting upload of ${images.length} images for product ${productId}`,
   );
 
+  const urls = [];
+
   for (let i = 0; i < images.length; i++) {
     const image = images[i];
     console.log(`Processing image ${i + 1}/${images.length}:`, {
       type: typeof image,
-      isFile: image instanceof File,
       isString: typeof image === "string",
-      name: image instanceof File ? image.name : "N/A",
-      size: image instanceof File ? image.size : "N/A",
+      name:
+        image && typeof image === "object" && "name" in image
+          ? image.name
+          : "N/A",
+      size:
+        image && typeof image === "object" && "size" in image
+          ? image.size
+          : "N/A",
     });
 
     const formData = new FormData();
 
-    if (image instanceof File) {
-      // Si es un File object, agregarlo directamente
+    if (image && typeof image === "object") {
       formData.append("files", image);
-      console.log(`Appending File object: ${image.name} (${image.size} bytes)`);
+      const name = "name" in image ? image.name : "image";
+      const size = "size" in image ? image.size : "N/A";
+      console.log(`Appending file-like object: ${name} (${size} bytes)`);
     } else if (typeof image === "string") {
       // Si es una URL string, convertirla a File primero
       try {
@@ -177,19 +203,14 @@ async function uploadProductImages(productId, images, token, backendUrl) {
     }
 
     try {
-      console.log(
-        `Uploading to: ${backendUrl}/admin/products/${productId}/uploads`,
-      );
-      const response = await fetch(
-        `${backendUrl}/admin/products/${productId}/uploads`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
+      console.log(`Uploading to: ${backendUrl}/admin/uploads`);
+      const response = await fetch(`${backendUrl}/admin/uploads`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: formData,
+      });
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -201,9 +222,50 @@ async function uploadProductImages(productId, images, token, backendUrl) {
 
       const result = await response.json();
       console.log(`Successfully uploaded image ${i + 1}:`, result);
+
+      const maybeFiles =
+        result?.files ||
+        result?.uploads ||
+        result?.data?.files ||
+        result?.data?.uploads ||
+        [];
+
+      if (Array.isArray(maybeFiles) && maybeFiles.length > 0) {
+        const u = maybeFiles[0]?.url;
+        if (typeof u === "string" && u) urls.push(u);
+      }
     } catch (uploadError) {
       console.error(`Failed to upload image ${i + 1}:`, uploadError);
       throw uploadError;
     }
+  }
+
+  if (urls.length === 0) return;
+
+  try {
+    const updateResponse = await fetch(
+      `${backendUrl}/admin/products/${productId}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          thumbnail: urls[0],
+          images: urls.map((url) => ({ url })),
+        }),
+      },
+    );
+
+    const updateData = await updateResponse.json();
+    if (!updateResponse.ok) {
+      throw new Error(
+        updateData?.message || "Error al asociar imágenes al producto",
+      );
+    }
+  } catch (error) {
+    console.error("Error updating product images:", error);
+    throw error;
   }
 }

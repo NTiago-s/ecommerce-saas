@@ -2,7 +2,15 @@
 import { createMedusaProduct } from "../../../app/actions/store-actions/products/create-products";
 import { useState, useRef } from "react";
 
-export default function CreateProductForm({ onSuccess }) {
+function parsePriceToCents(value) {
+  if (value === null || value === undefined) return 0;
+  const normalized = String(value).trim().replace(/\s/g, "").replace(",", ".");
+  const num = Number.parseFloat(normalized);
+  if (!Number.isFinite(num) || num < 0) return 0;
+  return Math.round(num * 100);
+}
+
+export default function CreateProductForm({ onSuccess, storeId }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("details");
@@ -176,8 +184,8 @@ export default function CreateProductForm({ onSuccess }) {
                 prices: Object.entries(variants[0]?.prices || {})
                   .filter(([_, price]) => price)
                   .map(([currency, price]) => ({
-                    amount: Math.round(parseFloat(price) * 100),
-                    currency_code: currency.toUpperCase(),
+                    amount: parsePriceToCents(price),
+                    currency_code: currency.toLowerCase(),
                   })),
               },
             ];
@@ -186,10 +194,15 @@ export default function CreateProductForm({ onSuccess }) {
         ...formData,
         options,
         variants: preparedVariants,
-        images: images, // Enviar los objetos File directamente
       };
 
-      const result = await createMedusaProduct(productData);
+      const submitData = new FormData();
+      submitData.append("productData", JSON.stringify(productData));
+      for (const image of images) {
+        submitData.append("images", image);
+      }
+
+      const result = await createMedusaProduct(submitData, storeId);
 
       if (result.success) {
         setMessage("✅ Producto creado exitosamente");
@@ -247,8 +260,8 @@ export default function CreateProductForm({ onSuccess }) {
         prices: Object.entries(baseVariant?.prices || {})
           .filter(([_, price]) => price)
           .map(([currency, price]) => ({
-            amount: Math.round(parseFloat(price) * 100),
-            currency_code: currency.toUpperCase(),
+            amount: parsePriceToCents(price),
+            currency_code: currency.toLowerCase(),
           })),
         options: options.map((opt) => ({
           value: opt.values[0],

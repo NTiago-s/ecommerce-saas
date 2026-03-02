@@ -4,14 +4,25 @@ import { getAdminToken } from "../../../../lib/get-admin-token";
 import { prisma } from "../../../../lib/prisma";
 import { auth } from "../../../../auth";
 
-export async function updateMedusaProduct(productId, productData) {
+function parsePriceToCents(value) {
+  if (value === null || value === undefined) return 0;
+  const normalized = String(value).trim().replace(/\s/g, "").replace(",", ".");
+  const num = Number.parseFloat(normalized);
+  if (!Number.isFinite(num) || num < 0) return 0;
+  return Math.round(num * 100);
+}
+
+export async function updateMedusaProduct(productId, productData, storeId) {
   const session = await auth();
   const userId = session?.user?.id;
 
   if (!userId) return { success: false, error: "No autenticado" };
 
   const userStore = await prisma.store.findFirst({
-    where: { ownerId: userId },
+    where: {
+      ownerId: userId,
+      ...(storeId ? { id: storeId } : {}),
+    },
     select: { medusaSalesChannelId: true },
   });
 
@@ -24,12 +35,15 @@ export async function updateMedusaProduct(productId, productData) {
 
   try {
     // First get the current product to preserve existing data
-    const getProductResponse = await fetch(`${backendUrl}/admin/products/${productId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
+    const getProductResponse = await fetch(
+      `${backendUrl}/admin/products/${productId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
       },
-    });
+    );
 
     if (!getProductResponse.ok) {
       throw new Error("No se pudo obtener el producto actual");
@@ -57,7 +71,7 @@ export async function updateMedusaProduct(productId, productData) {
             prices: [
               {
                 id: currentVariant?.prices?.[0]?.id,
-                amount: Math.round(parseFloat(productData.price) * 100),
+                amount: parsePriceToCents(productData.price),
                 currency_code: "usd",
               },
             ],

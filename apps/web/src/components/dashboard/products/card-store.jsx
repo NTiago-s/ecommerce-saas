@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 
-export default function ProductCard({ product, onEdit, onDelete }) {
+export default function ProductCard({ product, onEdit, onDelete, storeId }) {
   console.log({ product });
 
   const variant = product.variants?.[0];
@@ -10,7 +10,11 @@ export default function ProductCard({ product, onEdit, onDelete }) {
     variant?.prices?.[0]?.amount ||
     0;
 
-  const formattedPrice = rawPrice.toLocaleString("en-US", {
+  const priceNumber =
+    typeof rawPrice === "number" ? rawPrice : Number(rawPrice) || 0;
+  const priceInUnits = priceNumber / 100;
+
+  const formattedPrice = priceInUnits.toLocaleString("en-US", {
     style: "currency",
     currency: "USD",
   });
@@ -19,8 +23,9 @@ export default function ProductCard({ product, onEdit, onDelete }) {
 
   const handleToggleStatus = async () => {
     try {
+      const qs = storeId ? `?storeId=${encodeURIComponent(storeId)}` : "";
       const response = await fetch(
-        `/api/products/${product.id}/toggle-status`,
+        `/api/products/${product.id}/toggle-status${qs}`,
         {
           method: "PATCH",
         },
@@ -38,7 +43,22 @@ export default function ProductCard({ product, onEdit, onDelete }) {
     if (
       window.confirm("¿Estás seguro de que quieres eliminar este producto?")
     ) {
-      await onDelete(product.id);
+      try {
+        const qs = storeId ? `?storeId=${encodeURIComponent(storeId)}` : "";
+        const res = await fetch(`/api/products/${product.id}${qs}`, {
+          method: "DELETE",
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok || data?.success === false) {
+          throw new Error(data?.error || "No se pudo eliminar el producto");
+        }
+
+        await onDelete(product.id);
+      } catch (error) {
+        console.error("Error deleting product:", error);
+      }
     }
   };
 
