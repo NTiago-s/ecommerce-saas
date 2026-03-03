@@ -5,18 +5,32 @@ import ProductGridClient from "./product-grid-client";
 import CreateProductForm from "./form-create-product";
 import EditProductForm from "./form-edit-product";
 
-export default function ProductsClientPage({ products, store, stores }) {
+export default function ProductsClientPage({ productsByStore, store, stores }) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
-  const [productList, setProductList] = useState(products);
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const selectedStoreId = store?.id;
 
+  // Get all products for the selected store view
+  const currentStoreData = productsByStore[selectedStoreId] || {
+    store,
+    products: [],
+  };
+  const [productList, setProductList] = useState(currentStoreData.products);
+
+  // Calculate total products across all stores
+  const allProducts = Object.values(productsByStore).flatMap(
+    (data) => data.products,
+  );
+  const totalProductCount = allProducts.length;
+
   const handleProductCreated = (newProduct) => {
     setProductList((prev) => [newProduct, ...prev]);
     setShowCreateForm(false);
+    // Refresh page to get updated grouped data
+    router.refresh();
   };
 
   const handleProductUpdated = (updatedProduct) => {
@@ -24,10 +38,12 @@ export default function ProductsClientPage({ products, store, stores }) {
       prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)),
     );
     setEditingProduct(null);
+    router.refresh();
   };
 
   const handleProductDeleted = (productId) => {
     setProductList((prev) => prev.filter((p) => p.id !== productId));
+    router.refresh();
   };
 
   const handleEditProduct = (product) => {
@@ -43,7 +59,8 @@ export default function ProductsClientPage({ products, store, stores }) {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Productos</h1>
             <p className="text-gray-600 mt-2">
-              Gestiona los productos de tu tienda "{store.name}"
+              Gestiona los productos de tus {stores.length} tienda(s) ·{" "}
+              {totalProductCount} productos en total
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -93,6 +110,7 @@ export default function ProductsClientPage({ products, store, stores }) {
             <CreateProductForm
               onSuccess={handleProductCreated}
               storeId={selectedStoreId}
+              stores={stores}
             />
           </div>
         )}
@@ -116,17 +134,17 @@ export default function ProductsClientPage({ products, store, stores }) {
           </div>
         )}
 
-        {/* Products Grid */}
+        {/* Products Grid - Grouped by Stores */}
         {!showCreateForm && !editingProduct && (
           <>
-            {productList.length === 0 ? (
+            {totalProductCount === 0 ? (
               <div className="text-center py-12">
                 <div className="text-gray-400 text-6xl mb-4">📦</div>
                 <h3 className="text-xl font-medium text-gray-900 mb-2">
                   No tienes productos
                 </h3>
                 <p className="text-gray-600 mb-6">
-                  Comienza agregando tu primer producto a la tienda
+                  Comienza agregando tu primer producto a las tiendas
                 </p>
                 <button
                   onClick={() => setShowCreateForm(true)}
@@ -136,19 +154,12 @@ export default function ProductsClientPage({ products, store, stores }) {
                 </button>
               </div>
             ) : (
-              <div>
-                <div className="mb-6">
-                  <p className="text-gray-600">
-                    Mostrando {productList.length} producto(s)
-                  </p>
-                </div>
-                <ProductGridClient
-                  products={productList}
-                  onEdit={handleEditProduct}
-                  onDelete={handleProductDeleted}
-                  storeId={selectedStoreId}
-                />
-              </div>
+              <ProductGridClient
+                productsByStore={productsByStore}
+                onEdit={handleEditProduct}
+                onDelete={handleProductDeleted}
+                onUpdate={handleProductUpdated}
+              />
             )}
           </>
         )}

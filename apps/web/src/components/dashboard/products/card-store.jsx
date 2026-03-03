@@ -1,7 +1,17 @@
 "use client";
 import { useState } from "react";
+import {
+  deleteMedusaProduct,
+  toggleProductStatus,
+} from "../../../app/actions/store-actions/products/delete-product";
 
-export default function ProductCard({ product, onEdit, onDelete, storeId }) {
+export default function ProductCard({
+  product,
+  onEdit,
+  onDelete,
+  onUpdate,
+  storeId,
+}) {
   console.log({ product });
 
   const variant = product.variants?.[0];
@@ -23,16 +33,17 @@ export default function ProductCard({ product, onEdit, onDelete, storeId }) {
 
   const handleToggleStatus = async () => {
     try {
-      const qs = storeId ? `?storeId=${encodeURIComponent(storeId)}` : "";
-      const response = await fetch(
-        `/api/products/${product.id}/toggle-status${qs}`,
-        {
-          method: "PATCH",
-        },
-      );
+      const result = await toggleProductStatus(product.id, storeId);
 
-      if (response.ok) {
-        window.location.reload();
+      if (result.success) {
+        if (typeof onUpdate === "function") {
+          onUpdate({
+            ...product,
+            status: product.status === "published" ? "draft" : "published",
+          });
+        }
+      } else {
+        console.error("Error toggling product status:", result.error);
       }
     } catch (error) {
       console.error("Error toggling product status:", error);
@@ -44,18 +55,15 @@ export default function ProductCard({ product, onEdit, onDelete, storeId }) {
       window.confirm("¿Estás seguro de que quieres eliminar este producto?")
     ) {
       try {
-        const qs = storeId ? `?storeId=${encodeURIComponent(storeId)}` : "";
-        const res = await fetch(`/api/products/${product.id}${qs}`, {
-          method: "DELETE",
-        });
+        const result = await deleteMedusaProduct(product.id, storeId);
 
-        const data = await res.json().catch(() => ({}));
-
-        if (!res.ok || data?.success === false) {
-          throw new Error(data?.error || "No se pudo eliminar el producto");
+        if (!result.success) {
+          throw new Error(result.error || "No se pudo eliminar el producto");
         }
 
-        await onDelete(product.id);
+        if (typeof onDelete === "function") {
+          onDelete(product.id);
+        }
       } catch (error) {
         console.error("Error deleting product:", error);
       }

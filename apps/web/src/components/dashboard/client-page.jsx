@@ -15,6 +15,7 @@ export default function DashboardClientPage({ user }) {
   const [activeSection, setActiveSection] = useState("profile");
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [myStore, setMyStore] = useState(null);
 
   useEffect(() => {
     async function loadData() {
@@ -25,12 +26,13 @@ export default function DashboardClientPage({ user }) {
         const regions = await getRegions();
 
         // DEBES CREAR ESTA ACCIÓN: getMyActiveStore()
-        const myStore = await getMyActiveStore();
+        const store = await getMyActiveStore();
+        setMyStore(store);
 
-        if (regions.length > 0 && myStore?.medusaSalesChannelId) {
+        if (regions.length > 0 && store?.medusaSalesChannelId) {
           const data = await getProductsFromMedusa(
             regions[0].id,
-            myStore.medusaSalesChannelId,
+            store.medusaSalesChannelId,
           );
 
           setProducts(data);
@@ -55,9 +57,23 @@ export default function DashboardClientPage({ user }) {
       case "create-product":
         return <CreateProductForm />;
       case "products":
+        // Convert products array to productsByStore format for compatibility
+        const productsByStore = myStore?.id
+          ? {
+              [myStore.id]: {
+                store: myStore,
+                products: products || [],
+              },
+            }
+          : {};
         return (
           <div className="w-full">
-            <ProductGridClient products={products} />
+            <ProductGridClient
+              productsByStore={productsByStore}
+              onEdit={() => {}}
+              onDelete={() => {}}
+              onUpdate={() => {}}
+            />
           </div>
         );
     }
