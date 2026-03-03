@@ -1,6 +1,6 @@
 import { auth } from "../../../auth";
 import prisma from "../../../lib/prisma";
-import { getProductsFromMedusa } from "../../../app/actions/store-actions/products/get-products";
+import { getProductsGroupedByChannel } from "../../../app/actions/store-actions/products/get-products";
 import ProductsClientPage from "../../../components/dashboard/products/products-client-page";
 import { redirect } from "next/navigation";
 
@@ -36,16 +36,17 @@ export default async function ProductsPage({ searchParams }) {
       ? user.stores.find((s) => s.id === requestedStoreId)
       : null) || user.stores[0];
 
-  let products = [];
+  // Fetch products grouped by store/channel
+  let productsByStore = {};
   try {
-    products = await getProductsFromMedusa(null, store.medusaSalesChannelId);
+    productsByStore = await getProductsGroupedByChannel(null, user.stores);
   } catch (error) {
     console.error("Error fetching products:", error);
   }
 
   return (
     <ProductsClientPage
-      products={products}
+      productsByStore={productsByStore}
       store={store}
       stores={user.stores}
     />

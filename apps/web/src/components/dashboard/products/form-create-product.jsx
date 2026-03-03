@@ -1,6 +1,7 @@
 "use client";
 import { createMedusaProduct } from "../../../app/actions/store-actions/products/create-products";
-import { useState, useRef } from "react";
+import { getSalesChannels } from "../../../app/actions/store-actions/sales-channels/get-sale-channels";
+import { useState, useRef, useEffect } from "react";
 
 function parsePriceToCents(value) {
   if (value === null || value === undefined) return 0;
@@ -10,10 +11,15 @@ function parsePriceToCents(value) {
   return Math.round(num * 100);
 }
 
-export default function CreateProductForm({ onSuccess, storeId }) {
+export default function CreateProductForm({ onSuccess, storeId, stores = [] }) {
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [activeTab, setActiveTab] = useState("details");
+
+  // Estados para los canales de venta (tiendas)
+  const [salesChannels, setSalesChannels] = useState([]);
+  const [selectedChannels, setSelectedChannels] = useState([]);
+  const [channelsLoading, setChannelsLoading] = useState(true);
 
   // Estados para el formulario
   const [formData, setFormData] = useState({
@@ -56,6 +62,33 @@ export default function CreateProductForm({ onSuccess, storeId }) {
   // Estados para imágenes
   const [images, setImages] = useState([]);
   const fileInputRef = useRef(null);
+
+  // Fetch sales channels on mount
+  useEffect(() => {
+    async function fetchChannels() {
+      try {
+        const channels = await getSalesChannels();
+        setSalesChannels(channels);
+        // Pre-select the current store's channel if storeId is provided
+        if (storeId && stores.length > 0) {
+          const currentStore = stores.find((s) => s.id === storeId);
+          if (currentStore?.medusaSalesChannelId) {
+            setSelectedChannels((prev) =>
+              prev.includes(currentStore.medusaSalesChannelId)
+                ? prev
+                : [...prev, currentStore.medusaSalesChannelId],
+            );
+          }
+        }
+      } catch (error) {
+        console.error("Error fetching sales channels:", error);
+      } finally {
+        setChannelsLoading(false);
+      }
+    }
+    fetchChannels();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [storeId]);
 
   const handleInputChange = (field, value) => {
     setFormData((prev) => ({
@@ -154,6 +187,13 @@ export default function CreateProductForm({ onSuccess, storeId }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
+
+    // Validar que al menos una tienda esté seleccionada
+    if (selectedChannels.length === 0) {
+      setMessage("❌ Debes seleccionar al menos una tienda para el producto");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
 
@@ -194,6 +234,7 @@ export default function CreateProductForm({ onSuccess, storeId }) {
         ...formData,
         options,
         variants: preparedVariants,
+        sales_channels: selectedChannels.map((id) => ({ id })), // Agregar canales seleccionados
       };
 
       const submitData = new FormData();
@@ -202,7 +243,7 @@ export default function CreateProductForm({ onSuccess, storeId }) {
         submitData.append("images", image);
       }
 
-      const result = await createMedusaProduct(submitData, storeId);
+      const result = await createMedusaProduct(submitData);
 
       if (result.success) {
         setMessage("✅ Producto creado exitosamente");
@@ -392,6 +433,96 @@ export default function CreateProductForm({ onSuccess, storeId }) {
         {/* Tab: Organización */}
         {activeTab === "organization" && (
           <div className="space-y-6">
+            {/* Selección de Tiendas / Sales Channels */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tiendas (Sales Channels) *
+              </label>
+              <p className="text-xs text-gray-500 mb-3">
+                Selecciona las tiendas donde estará disponible este producto
+              </p>
+
+              {channelsLoading ? (
+                <div className="flex items-center gap-2 text-gray-500">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                      fill="none"
+                    />
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    />
+                  </svg>
+                  Cargando tiendas...
+                </div>
+              ) : salesChannels.length === 0 ? (
+                <p className="text-sm text-amber-600 bg-amber-50 p-3 rounded-lg">
+                  No tienes tiendas configuradas. Crea una tienda primero.
+                </p>
+              ) : (
+                <div className="border border-gray-200 rounded-lg p-4 space-y-3">
+                  {salesChannels.map((channel) => (
+                    <label
+                      key={channel.id}
+                      className="flex items-start gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={selectedChannels.includes(channel.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedChannels((prev) => [
+                              ...prev,
+                              channel.id,
+                            ]);
+                          } else {
+                            setSelectedChannels((prev) =>
+                              prev.filter((id) => id !== channel.id),
+                            );
+                          }
+                        }}
+                        className="mt-1 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      />
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-gray-900">
+                            {channel.name}
+                          </span>
+                          {channel.is_disabled ? (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700">
+                              Deshabilitada
+                            </span>
+                          ) : (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                              Activa
+                            </span>
+                          )}
+                        </div>
+                        {channel.description && (
+                          <p className="text-sm text-gray-500 mt-0.5">
+                            {channel.description}
+                          </p>
+                        )}
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {selectedChannels.length > 0 && (
+                <p className="text-sm text-gray-600 mt-2">
+                  {selectedChannels.length} tienda(s) seleccionada(s)
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">

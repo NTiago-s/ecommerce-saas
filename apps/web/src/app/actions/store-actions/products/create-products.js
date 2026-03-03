@@ -14,23 +14,11 @@ function parsePriceToCents(value) {
   return Math.round(num * 100);
 }
 
-export async function createMedusaProduct(formData, storeId) {
+export async function createMedusaProduct(formData) {
   const session = await auth();
   const userId = session?.user?.id;
 
   if (!userId) return { success: false, error: "No autenticado" };
-
-  const userStore = await prisma.store.findFirst({
-    where: {
-      ownerId: userId,
-      ...(storeId ? { id: storeId } : {}),
-    },
-    select: { id: true, medusaSalesChannelId: true },
-  });
-
-  if (!userStore?.medusaSalesChannelId) {
-    return { success: false, error: "No tienes una tienda configurada" };
-  }
 
   const token = await getAdminToken();
   const backendUrl = process.env.MEDUSA_BACKEND_URL;
@@ -40,14 +28,21 @@ export async function createMedusaProduct(formData, storeId) {
     const productData = productDataRaw ? JSON.parse(productDataRaw) : {};
     const images = formData.getAll("images");
 
+    // Get sales channels from the form data (can be multiple)
+    const salesChannels = productData.sales_channels || [];
+
+    if (salesChannels.length === 0) {
+      return { success: false, error: "Debes seleccionar al menos una tienda" };
+    }
+
     // Preparar el payload según la estructura de Medusa v2
     const payload = {
       title: productData.title,
       description: productData.description || "",
       status: productData.status || "published",
       discountable: productData.discountable ?? true,
-      // Vinculación al canal del usuario
-      sales_channels: [{ id: userStore.medusaSalesChannelId }],
+      // Vinculación a los canales seleccionados por el usuario
+      sales_channels: salesChannels,
       // Shipping profile requerido por Medusa
       shipping_profile_id: "sp_01KEWKFBBTP3ZB2CD807DMQQET",
       // Opciones del producto
