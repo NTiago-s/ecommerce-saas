@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { MoreVertical, Pencil, Trash2, Lock, Unlock } from "lucide-react";
 import {
   deleteMedusaProduct,
   toggleProductStatus,
@@ -12,8 +13,6 @@ export default function ProductCard({
   onUpdate,
   storeId,
 }) {
-  console.log({ product });
-
   const variant = product.variants?.[0];
   const rawPrice =
     variant?.calculated_price?.calculated_amount ||
@@ -88,8 +87,10 @@ export default function ProductCard({
         <button
           onClick={() => setShowActions(!showActions)}
           className="bg-white/90 backdrop-blur-sm p-2 rounded-lg shadow-md hover:bg-white transition-colors"
+          aria-label="Abrir acciones"
+          type="button"
         >
-          ⋮
+          <MoreVertical className="size-5 text-gray-700" />
         </button>
 
         {showActions && (
@@ -100,20 +101,36 @@ export default function ProductCard({
                 setShowActions(false);
               }}
               className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
+              type="button"
             >
-              ✏️ Editar
+              <span className="flex items-center gap-2">
+                <Pencil className="size-4 text-gray-600" />
+                Editar
+              </span>
             </button>
             <button
               onClick={handleToggleStatus}
               className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
+              type="button"
             >
-              {product.status === "published" ? "🔒 Desactivar" : "🔓 Activar"}
+              <span className="flex items-center gap-2">
+                {product.status === "published" ? (
+                  <Lock className="size-4 text-gray-600" />
+                ) : (
+                  <Unlock className="size-4 text-gray-600" />
+                )}
+                {product.status === "published" ? "Desactivar" : "Activar"}
+              </span>
             </button>
             <button
               onClick={handleDelete}
               className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 transition-colors"
+              type="button"
             >
-              🗑️ Eliminar
+              <span className="flex items-center gap-2">
+                <Trash2 className="size-4" />
+                Eliminar
+              </span>
             </button>
           </div>
         )}
