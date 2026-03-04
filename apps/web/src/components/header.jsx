@@ -2,10 +2,19 @@ import Link from "next/link";
 import { Menu } from "lucide-react";
 import Button from "../ui/button";
 import { auth } from "../auth";
+import prisma from "../lib/prisma";
 
 export default async function Header() {
   const session = await auth();
   const isLoggedIn = !!session?.user;
+  const isAdmin = session?.user?.id
+    ? (
+        await prisma.user.findUnique({
+          where: { id: session.user.id },
+          select: { role: true },
+        })
+      )?.role === "ADMIN"
+    : false;
 
   return (
     <div className="sticky top-0 left-0 w-full border-b border-gray-200 bg-white shadow-sm z-50">
@@ -72,9 +81,16 @@ export default async function Header() {
                 </Button>
               </>
             ) : (
-              <Button variant="primary" href="/dashboard">
-                Dashboard
-              </Button>
+              <>
+                {isAdmin ? (
+                  <Button variant="outline" href="/admin">
+                    Admin
+                  </Button>
+                ) : null}
+                <Button variant="primary" href="/dashboard">
+                  Dashboard
+                </Button>
+              </>
             )}
           </div>
         </div>

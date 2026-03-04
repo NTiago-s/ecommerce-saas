@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
+import { Check, Search, Store, Package } from "lucide-react";
 import ProductCard from "./card-store";
 
 export default function ProductGridClient({
@@ -106,19 +107,7 @@ export default function ProductGridClient({
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg pl-10 pr-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
-              <svg
-                className="absolute left-3 top-2.5 w-5 h-5 text-gray-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                />
-              </svg>
+              <Search className="absolute left-3 top-2.5 size-5 text-gray-400" />
             </div>
           </div>
 
@@ -155,21 +144,9 @@ export default function ProductGridClient({
               }`}
             >
               <span className="flex items-center gap-2">
-                {selectedStores.includes(store.id) && (
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M5 13l4 4L19 7"
-                    />
-                  </svg>
-                )}
+                {selectedStores.includes(store.id) ? (
+                  <Check className="size-4" />
+                ) : null}
                 {store.name}
                 <span className="text-xs opacity-75">
                   ({productsByStore[store.id]?.products?.length || 0})
@@ -188,8 +165,10 @@ export default function ProductGridClient({
 
       {/* Products by Store */}
       {Object.entries(filteredData).length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow-sm border border-gray-200">
-          <div className="text-gray-400 text-5xl mb-4">📦</div>
+        <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
+          <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-blue-50">
+            <Package className="size-7 text-blue-600" />
+          </div>
           <h3 className="text-lg font-medium text-gray-900 mb-2">
             No se encontraron productos
           </h3>
@@ -206,19 +185,7 @@ export default function ProductGridClient({
               {/* Store Header */}
               <div className="flex items-center gap-3 pb-3 border-b border-gray-200">
                 <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                  <svg
-                    className="w-5 h-5 text-blue-600"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"
-                    />
-                  </svg>
+                  <Store className="size-5 text-blue-600" />
                 </div>
                 <div>
                   <h2 className="text-lg font-semibold text-gray-900">

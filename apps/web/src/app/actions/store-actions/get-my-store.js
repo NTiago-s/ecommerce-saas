@@ -24,3 +24,27 @@ export async function getMyActiveStore() {
 
   return store;
 }
+
+export async function getMyStores() {
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  if (!userId) return [];
+
+  const stores = await prisma.store.findMany({
+    where: {
+      ownerId: userId,
+    },
+    select: {
+      id: true,
+      name: true,
+      medusaSalesChannelId: true,
+      medusaStoreId: true,
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
+  return stores;
+}

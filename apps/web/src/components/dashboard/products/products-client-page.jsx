@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Package } from "lucide-react";
 import ProductGridClient from "./product-grid-client";
 import CreateProductForm from "./form-create-product";
 import EditProductForm from "./form-edit-product";
@@ -138,8 +139,10 @@ export default function ProductsClientPage({ productsByStore, store, stores }) {
         {!showCreateForm && !editingProduct && (
           <>
             {totalProductCount === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-gray-400 text-6xl mb-4">📦</div>
+              <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
+                <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-blue-50">
+                  <Package className="size-7 text-blue-600" />
+                </div>
                 <h3 className="text-xl font-medium text-gray-900 mb-2">
                   No tienes productos
                 </h3>

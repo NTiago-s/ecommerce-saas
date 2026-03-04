@@ -3,24 +3,28 @@ import Button from "../ui/button";
 export default function Hero() {
   return (
     <section className="bg-linear-to-br from-blue-600 to-blue-800 text-white">
-      <div className="mx-auto max-w-7xl px-6 py-24 grid md:grid-cols-2 gap-12 items-center">
+      <div className="mx-auto max-w-7xl px-6 py-16 sm:py-20 lg:py-24 grid lg:grid-cols-2 gap-12 items-center">
         <div>
-          <h1 className="text-4xl md:text-6xl font-bold leading-tight">
+          <p className="inline-flex items-center rounded-full bg-white/10 px-3 py-1 text-xs font-semibold tracking-wide text-blue-100 ring-1 ring-white/15">
+            Ecommerce SaaS
+          </p>
+
+          <h1 className="mt-4 text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight">
             Crea y gestiona tus tiendas online
             <span className="block text-blue-200">desde un solo lugar</span>
           </h1>
 
-          <p className="mt-6 text-lg text-emerald-100">
+          <p className="mt-6 text-lg text-blue-100">
             Administra múltiples tiendas, planes de suscripción y pagos con una
             plataforma simple y escalable.
           </p>
 
-          <div className="mt-8 flex gap-4">
-            <Button variant="light" size="lg">
+          <div className="mt-8 flex flex-col sm:flex-row gap-3 sm:items-center">
+            <Button variant="light" size="lg" href="/register">
               Empezar ahora
             </Button>
 
-            <Button variant="secondary" size="lg">
+            <Button variant="secondary" size="lg" href="/dashboard">
               Ver demo
             </Button>
           </div>
