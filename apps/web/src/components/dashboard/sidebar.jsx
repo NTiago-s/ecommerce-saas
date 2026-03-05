@@ -60,7 +60,7 @@ export default function Sidebar({
                 <button
                   key={sec.id}
                   className={
-                    "group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition" +
+                    "group flex w-full items-center justify-between rounded-xl px-3 py-2.5 text-left text-sm font-medium transition cursor-pointer" +
                     (isActive
                       ? " bg-blue-600 text-white"
                       : " text-gray-700 hover:bg-gray-100")
