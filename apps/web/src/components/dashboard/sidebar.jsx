@@ -28,6 +28,7 @@ export default function Sidebar({
           className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setOpen(false)}
           aria-hidden="true"
+          role="presentation"
         />
       ) : null}
 
@@ -36,22 +37,23 @@ export default function Sidebar({
           "fixed inset-y-0 left-0 z-50 w-72 border-r border-gray-200 bg-white shadow-sm transition-transform lg:translate-x-0" +
           (open ? " translate-x-0" : " -translate-x-full")
         }
-        aria-label="Sidebar"
+        aria-label="Menú de navegación del dashboard"
+        role="navigation"
       >
-        <div className="flex items-center justify-between px-6 pt-6">
+        <header className="flex items-center justify-between px-6 pt-6">
           <h2 className="text-lg font-semibold text-gray-900">Dashboard</h2>
           <button
-            className="lg:hidden inline-flex size-10 items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50"
+            className="lg:hidden inline-flex size-10 items-center justify-center rounded-xl border border-gray-200 hover:bg-gray-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
             onClick={() => setOpen(false)}
-            aria-label="Cerrar menú"
+            aria-label="Cerrar menú de navegación"
             type="button"
           >
-            <X className="size-5 text-gray-700" />
+            <X className="size-5 text-gray-700" aria-hidden="true" />
           </button>
-        </div>
+        </header>
 
-        <nav className="px-4 pb-6 pt-6">
-          <div className="flex flex-col gap-1">
+        <nav className="px-4 pb-6 pt-6" aria-label="Secciones del dashboard">
+          <div className="flex flex-col gap-1" role="list">
             {SECTIONS.map((sec) => {
               const Icon = SECTION_ICONS[sec.id];
               const isActive = activeSection === sec.id;
@@ -67,6 +69,9 @@ export default function Sidebar({
                   }
                   onClick={() => handleSelect(sec.id)}
                   type="button"
+                  role="listitem"
+                  aria-label={`Ir a ${sec.title.toLowerCase()}`}
+                  aria-current={isActive ? "page" : "false"}
                 >
                   <span className="flex items-center gap-3">
                     {Icon ? (
@@ -75,6 +80,7 @@ export default function Sidebar({
                           "size-4" +
                           (isActive ? " text-white" : " text-gray-500")
                         }
+                        aria-hidden="true"
                       />
                     ) : null}
                     {sec.title}
