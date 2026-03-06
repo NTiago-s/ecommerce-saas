@@ -70,3 +70,25 @@ export async function getProductsGroupedByChannel(regionId, stores) {
 
   return results;
 }
+
+export async function getProductById(productId, storeId) {
+  const token = await getAdminToken();
+
+  if (!productId) return null;
+
+  const res = await fetch(`${backendUrl}/admin/products/${productId}`, {
+    headers: {
+      authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    },
+    next: { revalidate: 0 },
+  });
+
+  if (!res.ok) {
+    console.error(`Failed to fetch product ${productId}:`, res.status);
+    return null;
+  }
+
+  const data = await res.json();
+  return data.product || null;
+}
