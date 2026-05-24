@@ -72,11 +72,7 @@ export default function CreateProductForm({ onSuccess, storeId, stores = [] }) {
         if (storeId && stores.length > 0) {
           const currentStore = stores.find((s) => s.id === storeId);
           if (currentStore?.medusaSalesChannelId) {
-            setSelectedChannels((prev) =>
-              prev.includes(currentStore.medusaSalesChannelId)
-                ? prev
-                : [...prev, currentStore.medusaSalesChannelId],
-            );
+            setSelectedChannels([currentStore.medusaSalesChannelId]);
           }
         }
       } catch (error) {

@@ -52,23 +52,35 @@ export async function retrieveCart(cartId?: string, fields?: string) {
     .catch(() => null)
 }
 
-export async function getOrSetCart(countryCode: string) {
+export async function getOrSetCart(
+  countryCode: string,
+  salesChannelId?: string
+) {
   const region = await getRegion(countryCode)
 
   if (!region) {
     throw new Error(`Region not found for country code: ${countryCode}`)
   }
 
-  let cart = await retrieveCart(undefined, "id,region_id")
+  let cart = await retrieveCart(undefined, "id,region_id,sales_channel_id")
 
   const headers = {
     ...(await getAuthHeaders()),
   }
 
+  if (cart && salesChannelId && cart.sales_channel_id !== salesChannelId) {
+    await removeCartId()
+    cart = null
+  }
+
   if (!cart) {
     const locale = await getLocale()
     const cartResp = await sdk.store.cart.create(
-      { region_id: region.id, locale: locale || undefined },
+      {
+        region_id: region.id,
+        locale: locale || undefined,
+        sales_channel_id: salesChannelId,
+      },
       {},
       headers
     )
@@ -118,16 +130,18 @@ export async function addToCart({
   variantId,
   quantity,
   countryCode,
+  salesChannelId,
 }: {
   variantId: string
   quantity: number
   countryCode: string
+  salesChannelId?: string
 }) {
   if (!variantId) {
     throw new Error("Missing variant ID when adding to cart")
   }
 
-  const cart = await getOrSetCart(countryCode)
+  const cart = await getOrSetCart(countryCode, salesChannelId)
 
   if (!cart) {
     throw new Error("Error retrieving or creating cart")

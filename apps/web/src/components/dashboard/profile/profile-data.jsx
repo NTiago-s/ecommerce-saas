@@ -1,109 +1,82 @@
 "use client";
+
 import { signOut } from "next-auth/react";
-import InfoItem from "../../../ui/info-item";
 import { useState } from "react";
+import InfoItem from "../../../ui/info-item";
+import Button from "../../../ui/button";
+import {
+  getPrimarySubscription,
+  subscriptionStatusLabel,
+} from "../../../lib/subscriptions";
 
 export default function ProfileData({ user }) {
   const [loading, setLoading] = useState(false);
+  const activeSubscription = getPrimarySubscription(user.subscriptions);
+  const planName = activeSubscription?.plan?.name || "Sin plan";
+  const subscriptionStatus = activeSubscription?.status || "INCOMPLETE";
+  const maxStores = activeSubscription?.plan?.maxStores ?? 0;
 
-  // Obtener la suscripción activa más reciente
-  const activeSubscription =
-    user.subscriptions?.length > 0
-      ? user.subscriptions.sort(
-          (a, b) => new Date(b.createdAt) - new Date(a.createdAt),
-        )[0]
-      : null;
-
-  const planName = activeSubscription?.plan?.name || "Free";
-  const subscriptionStatus = activeSubscription?.status || "Activo";
-  const maxStores = activeSubscription?.plan?.maxStores ?? 1;
-
-  const statusSub =
-    subscriptionStatus === "TRIAL"
-      ? "Trial"
-      : subscriptionStatus === "ACTIVE"
-        ? "Activo"
-        : subscriptionStatus === "PAST_DUE"
-          ? "Vencido"
-          : subscriptionStatus === "CANCELED"
-            ? "Cancelado"
-            : subscriptionStatus === "INCOMPLETE"
-              ? "Incompleto"
-              : "Desconocido";
-
-  function handleLogout() {
+  async function handleLogout() {
     setLoading(true);
-    signOut({ callbackUrl: "/login" });
+    await signOut({ callbackUrl: "/login" });
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-8">
-      {/* Header */}
-      <div>
-        <h2 className="text-2xl font-bold text-gray-800">Mi cuenta</h2>
-        <p className="text-gray-500">
-          Información de tu cuenta y estado del servicio
-        </p>
-      </div>
+    <div className="grid gap-6">
+      <section className="surface p-6">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+            Mi cuenta
+          </p>
+          <h2 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+            Cuenta y suscripción
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            Vista compacta de tu perfil, estado del plan y accesos de seguridad.
+          </p>
+        </div>
+      </section>
 
-      {/* Datos del usuario */}
-      <section className="bg-white rounded-lg shadow p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-700">
+      <section className="grid gap-4 md:grid-cols-3">
+        <InfoItem label="Plan actual" value={planName} />
+        <InfoItem
+          label="Estado"
+          value={subscriptionStatusLabel(subscriptionStatus)}
+          badge
+        />
+        <InfoItem label="Tiendas permitidas" value={maxStores} />
+      </section>
+
+      <section className="surface p-6">
+        <h3 className="text-lg font-semibold tracking-tight text-slate-950">
           Datos personales
         </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="mt-5 grid gap-4 md:grid-cols-2">
           <InfoItem label="Email" value={user.email} />
-          <InfoItem label="Telefono" value={user.phone || "No especificado"} />
+          <InfoItem label="Teléfono" value={user.phone || "No especificado"} />
           <InfoItem
             label="Fecha de registro"
-            value={new Date(user.createdAt).toLocaleDateString()}
+            value={new Date(user.createdAt).toLocaleDateString("es-AR")}
           />
         </div>
       </section>
 
-      {/* Plan / suscripción */}
-      <section className="bg-white rounded-lg shadow p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-700">
-          Plan y suscripción
+      <section className="surface p-6">
+        <h3 className="text-lg font-semibold tracking-tight text-slate-950">
+          Seguridad
         </h3>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <InfoItem label="Plan actual" value={planName} />
-          <InfoItem label="Estado" value={statusSub} badge />
-          <InfoItem label="Tiendas permitidas" value={maxStores} />
-        </div>
-
-        <div className="pt-4">
-          <button
-            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition cursor-pointer"
-            aria-label="boton gestionar suscripcion"
-          >
-            Gestionar suscripción
-          </button>
-        </div>
-      </section>
-
-      {/* Seguridad */}
-      <section className="bg-white rounded-lg shadow p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-gray-700">Seguridad</h3>
-
-        <div className="flex flex-wrap gap-4">
-          <button
-            aria-label="boton cambiar contraseña"
-            className="border px-4 py-2 rounded-md hover:bg-gray-50 cursor-pointer"
-          >
+        <div className="mt-5 flex flex-wrap gap-3">
+          <Button variant="outline" type="button">
             Cambiar contraseña
-          </button>
-
-          <button
+          </Button>
+          <Button
+            variant="primary"
+            type="button"
             disabled={loading}
             onClick={handleLogout}
-            aria-label="boton cerrar sesion"
-            className="border border-red-500 text-red-600 px-4 py-2 rounded-md hover:bg-red-50 cursor-pointer"
           >
             {loading ? "Cerrando sesión..." : "Cerrar sesión"}
-          </button>
+          </Button>
         </div>
       </section>
     </div>

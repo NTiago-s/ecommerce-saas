@@ -1,10 +1,8 @@
-import { MedusaRequest, MedusaResponse } from "@medusajs/framework/http"
-
 export const AUTHENTICATE = true
 
 export async function GET(
-  req: MedusaRequest,
-  res: MedusaResponse
+  req: any,
+  res: any
 ) {
   const auth = (req as any).auth
 

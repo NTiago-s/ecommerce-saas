@@ -3,6 +3,11 @@ import prisma from "../../lib/prisma";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 
+const NAV = [
+  { href: "/admin/plans", label: "Planes" },
+  { href: "/dashboard", label: "Dashboard" },
+];
+
 export default async function AdminLayout({ children }) {
   const session = await auth();
 
@@ -20,29 +25,31 @@ export default async function AdminLayout({ children }) {
   }
 
   return (
-    <div className="min-h-[calc(100vh-80px)] bg-gray-100">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-6 flex items-center justify-between">
+    <div className="min-h-[calc(100vh-5rem)] px-4 py-8 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl">
+        <div className="surface-soft mb-6 flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Admin</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Panel de administración
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+              Admin workspace
+            </p>
+            <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+              Gestión de plataforma
+            </h1>
+            <p className="mt-2 text-sm text-slate-600">
+              Control de planes, billing y configuración operativa.
             </p>
           </div>
 
-          <nav className="flex items-center gap-2">
-            <Link
-              href="/admin/plans"
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
-            >
-              Planes
-            </Link>
-            <Link
-              href="/dashboard"
-              className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-900 hover:bg-gray-50"
-            >
-              Ir a mi tienda
-            </Link>
+          <nav className="flex flex-wrap gap-2" aria-label="Navegación admin">
+            {NAV.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                className="rounded-full border border-[var(--border)] bg-white px-4 py-2 text-sm font-medium text-slate-700 transition hover:border-slate-300 hover:bg-slate-50"
+              >
+                {item.label}
+              </Link>
+            ))}
           </nav>
         </div>
 
@@ -51,3 +58,4 @@ export default async function AdminLayout({ children }) {
     </div>
   );
 }
+

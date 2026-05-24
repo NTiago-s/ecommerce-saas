@@ -17,6 +17,7 @@ type ProductActionsProps = {
   product: HttpTypes.StoreProduct
   region: HttpTypes.StoreRegion
   disabled?: boolean
+  salesChannelId?: string
 }
 
 const optionsAsKeymap = (
@@ -31,6 +32,7 @@ const optionsAsKeymap = (
 export default function ProductActions({
   product,
   disabled,
+  salesChannelId,
 }: ProductActionsProps) {
   const router = useRouter()
   const pathname = usePathname()
@@ -130,6 +132,7 @@ export default function ProductActions({
       variantId: selectedVariant.id,
       quantity: 1,
       countryCode,
+      salesChannelId,
     })
 
     setIsAdding(false)

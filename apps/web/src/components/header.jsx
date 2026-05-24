@@ -1,135 +1,129 @@
 import Link from "next/link";
-import { Menu } from "lucide-react";
-import Button from "../ui/button";
+import Image from "next/image";
 import { auth } from "../auth";
-import prisma from "../lib/prisma";
+import Button from "../ui/button";
+import { Menu } from "lucide-react";
+
+const NAV_ITEMS = [
+  { href: "/planes", label: "Planes" },
+  { href: "/beneficios", label: "Beneficios" },
+  { href: "/como-funciona", label: "Como funciona" },
+  { href: "/faq", label: "FAQ" },
+  { href: "/contacto", label: "Contacto" },
+];
 
 export default async function Header() {
   const session = await auth();
-  const isLoggedIn = !!session?.user;
-  const isAdmin = session?.user?.id
-    ? (
-        await prisma.user.findUnique({
-          where: { id: session.user.id },
-          select: { role: true },
-        })
-      )?.role === "ADMIN"
-    : false;
+  const isLoggedIn = Boolean(session?.user);
 
   return (
-    <div className="sticky top-0 left-0 w-full border-b border-gray-200 bg-white shadow-sm z-50">
-      <header className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        <div className="flex h-20 items-center justify-between">
-          {/* Menú Mobile */}
-          <div className="flex lg:hidden">
-            <button
-              className="text-gray-600 hover:text-black p-2 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 cursor-pointer"
-              aria-label="Abrir menú de navegación"
-              aria-expanded="false"
-            >
-              <Menu size={24} aria-hidden="true" />
-            </button>
-          </div>
-
-          {/* Logo */}
-          <div className="shrink-0">
-            <Link
-              href="/"
-              className="text-2xl font-bold tracking-tighter italic focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md p-1"
-              aria-label="Ir a la página principal de Codeluxe Store"
-            >
-              <img
+    <header className="sticky top-0 z-50 border-b border-[var(--border)] bg-white/85 backdrop-blur-xl">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="flex items-center gap-3 rounded-full px-1 py-1 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+            aria-label="Ir a la pagina principal de Codeluxe Store"
+          >
+            <span className="flex size-10 items-center justify-center overflow-hidden rounded-2xl border border-[var(--border)] bg-white shadow-sm">
+              <Image
                 src="/logo-codeluxe.webp"
-                alt="Codeluxe Store - Logo"
-                className="size-18 rounded-full border border-gray-200"
-                loading="lazy"
-                decoding="async"
+                alt="Codeluxe Store"
+                width={36}
+                height={36}
+                className="size-9 rounded-xl object-cover"
+                priority
               />
+            </span>
+            <span className="hidden sm:block">
+              <span className="block text-sm font-semibold tracking-tight text-slate-900">
+                Codeluxe Store
+              </span>
+              <span className="block text-xs text-slate-500">
+                Crea tu ecommerce
+              </span>
+            </span>
+          </Link>
+        </div>
+
+        <nav className="hidden items-center gap-1 lg:flex" aria-label="Navegacion principal">
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="rounded-full px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2"
+            >
+              {item.label}
             </Link>
+          ))}
+        </nav>
+
+        <div className="flex items-center gap-2">
+          <div className="lg:hidden">
+            <details className="relative">
+              <summary className="flex list-none items-center justify-center rounded-full border border-[var(--border)] bg-white p-3 text-slate-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2">
+                <span className="sr-only">Abrir menu</span>
+                <Menu className="size-5" aria-hidden="true" />
+              </summary>
+              <div className="absolute right-0 mt-3 w-56 rounded-2xl border border-[var(--border)] bg-white p-2 shadow-[0_20px_50px_rgba(15,23,42,0.12)]">
+                {NAV_ITEMS.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                  >
+                    {item.label}
+                  </Link>
+                ))}
+                <div className="mt-2 border-t border-slate-100 pt-2">
+                  {!isLoggedIn ? (
+                    <div className="grid gap-2">
+                      <Link
+                        href="/login"
+                        className="rounded-xl px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                      >
+                        Ingresar
+                      </Link>
+                      <Link
+                        href="/planes"
+                        className="rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white"
+                      >
+                        Ver planes
+                      </Link>
+                    </div>
+                  ) : (
+                    <div className="grid gap-2">
+                      <Link
+                        href="/dashboard"
+                        className="rounded-xl bg-[var(--accent)] px-3 py-2 text-sm font-semibold text-white"
+                      >
+                        Dashboard
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </details>
           </div>
 
-          {/* Navegación Desktop */}
-          <nav
-            className="hidden lg:flex lg:space-x-8"
-            aria-label="Navegación principal"
-            role="navigation"
-          >
-            <Link
-              href="/catalog"
-              className="text-sm font-medium text-gray-700 hover:underline underline-offset-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-2 py-1"
-              aria-label="Ver catálogo de productos"
-            >
-              Catálogo
-            </Link>
-            <Link
-              href="/new-arrivals"
-              className="text-sm font-medium text-gray-700 hover:underline underline-offset-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-2 py-1"
-              aria-label="Ver últimas novedades"
-            >
-              Novedades
-            </Link>
-            <Link
-              href="/sale"
-              className="text-sm font-medium text-blue-600 hover:underline underline-offset-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-2 py-1"
-              aria-label="Ver ofertas y promociones"
-            >
-              Ofertas
-            </Link>
-            <Link
-              href="/contact"
-              className="text-sm font-medium text-gray-700 hover:underline underline-offset-4 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-2 py-1"
-              aria-label="Contactar con soporte"
-            >
-              Contacto
-            </Link>
-          </nav>
-
-          {/* Acciones */}
-          <div
-            className="flex items-center space-x-5"
-            role="group"
-            aria-label="Acciones de usuario"
-          >
+          <div className="hidden items-center gap-2 lg:flex">
             {!isLoggedIn ? (
               <>
-                <Button
-                  variant="primary"
-                  href="/login"
-                  aria-label="Iniciar sesión en tu cuenta"
-                >
-                  Iniciar Sesión
+                <Button variant="outline" href="/login" size="sm">
+                  Ingresar
                 </Button>
-                <Button
-                  variant="outline"
-                  href="/register"
-                  aria-label="Crear una nueva cuenta"
-                >
-                  Registrarse
+                <Button variant="primary" href="/planes" size="sm">
+                  Ver planes
                 </Button>
               </>
             ) : (
-              <>
-                {isAdmin ? (
-                  <Button
-                    variant="outline"
-                    href="/admin"
-                    aria-label="Ir al panel de administración"
-                  >
-                    Admin
-                  </Button>
-                ) : null}
-                <Button
-                  variant="primary"
-                  href="/dashboard"
-                  aria-label="Ir al dashboard principal"
-                >
-                  Dashboard
-                </Button>
-              </>
+              <Button variant="primary" href="/dashboard" size="sm">
+                Dashboard
+              </Button>
             )}
           </div>
         </div>
-      </header>
-    </div>
+      </div>
+    </header>
   );
 }

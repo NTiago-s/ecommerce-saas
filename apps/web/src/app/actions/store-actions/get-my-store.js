@@ -17,8 +17,11 @@ export async function getMyActiveStore() {
     select: {
       id: true,
       name: true,
+      subdomain: true,
+      status: true,
       medusaSalesChannelId: true,
       medusaStoreId: true,
+      createdAt: true,
     },
   });
 
@@ -38,8 +41,11 @@ export async function getMyStores() {
     select: {
       id: true,
       name: true,
+      subdomain: true,
+      status: true,
       medusaSalesChannelId: true,
       medusaStoreId: true,
+      createdAt: true,
     },
     orderBy: {
       createdAt: "asc",

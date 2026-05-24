@@ -4,6 +4,10 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import prisma from "../../../lib/prisma";
 import { auth } from "../../../auth";
+import {
+  calculateMercadoPagoArsAmount,
+  getOfficialUsdArsRate,
+} from "../../../lib/bcra-official-fx";
 
 async function requireAdmin() {
   const session = await auth();
@@ -63,10 +67,10 @@ export async function createPlan(formData) {
 
   const name = String(formData.get("name") ?? "").trim();
   const currency = String(formData.get("currency") ?? "").trim() || "usd";
-  const stripePriceId = String(formData.get("stripePriceId") ?? "").trim();
+  const stripePriceIdRaw = String(formData.get("stripePriceId") ?? "").trim();
+  const stripePriceId = stripePriceIdRaw ? stripePriceIdRaw : null;
 
   if (!name) throw new Error("El nombre es obligatorio");
-  if (!stripePriceId) throw new Error("stripePriceId es obligatorio");
 
   const price = parseRequiredInt(formData.get("price"));
   const maxStores = parseOptionalInt(formData.get("maxStores"));
@@ -100,10 +104,10 @@ export async function updatePlan(planId, formData) {
 
   const name = String(formData.get("name") ?? "").trim();
   const currency = String(formData.get("currency") ?? "").trim() || "usd";
-  const stripePriceId = String(formData.get("stripePriceId") ?? "").trim();
+  const stripePriceIdRaw = String(formData.get("stripePriceId") ?? "").trim();
+  const stripePriceId = stripePriceIdRaw ? stripePriceIdRaw : null;
 
   if (!name) throw new Error("El nombre es obligatorio");
-  if (!stripePriceId) throw new Error("stripePriceId es obligatorio");
 
   const price = parseRequiredInt(formData.get("price"));
   const maxStores = parseOptionalInt(formData.get("maxStores"));
@@ -138,6 +142,46 @@ export async function deletePlan(planId) {
 
   await prisma.plan.delete({
     where: { id },
+  });
+
+  revalidatePath("/admin/plans");
+}
+
+export async function syncMercadoPagoPlan(planId) {
+  await requireAdmin();
+
+  const id = String(planId ?? "").trim();
+  if (!id) throw new Error("Plan invalido");
+
+  const plan = await prisma.plan.findUnique({
+    where: { id },
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      currency: true,
+      mpLastArsAmount: true,
+    },
+  });
+
+  if (!plan) throw new Error("Plan no encontrado");
+  if (Number(plan.price) <= 0) throw new Error("Solo aplica a planes pagos");
+  if (String(plan.currency ?? "").toLowerCase() !== "usd") {
+    throw new Error("Este flujo asume pricing en USD");
+  }
+
+  const fx = await getOfficialUsdArsRate();
+  const amountArs = calculateMercadoPagoArsAmount({
+    usdAmount: plan.price,
+    exchangeRate: fx.value,
+  });
+
+  await prisma.plan.update({
+    where: { id: plan.id },
+    data: {
+      mpLastArsAmount: amountArs,
+      mpLastFxAt: fx.date ?? new Date(),
+    },
   });
 
   revalidatePath("/admin/plans");

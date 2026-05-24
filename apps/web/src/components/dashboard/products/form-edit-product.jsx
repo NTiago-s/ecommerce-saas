@@ -20,17 +20,64 @@ export default function EditProductForm({ product, onSuccess, storeId }) {
       description: formData.get("description"),
       price: formData.get("price"),
       sku: formData.get("sku"),
+      status: formData.get("status"),
     };
 
-    const result = await updateMedusaProduct(product.id, productData, storeId);
-    setLoading(false);
+    // Actualización optimista inmediata
+    const updatedProduct = {
+      ...product,
+      title: productData.title,
+      description: productData.description,
+      status: productData.status,
+      variants: [
+        {
+          ...product.variants?.[0],
+          sku: productData.sku,
+          prices: [
+            {
+              ...product.variants?.[0]?.prices?.[0],
+              amount: parsePriceToCents(productData.price),
+            },
+          ],
+        },
+      ],
+    };
 
-    if (result.success) {
-      setMessage("✅ Producto actualizado");
-      onSuccess(result.data);
-    } else {
-      setMessage(`❌ Error: ${result.error}`);
+    onSuccess(updatedProduct);
+
+    try {
+      const result = await updateMedusaProduct(
+        product.id,
+        productData,
+        storeId,
+      );
+
+      if (result.success) {
+        setMessage("Producto actualizado");
+        onSuccess(result.data);
+      } else {
+        // Revertir si hay error
+        onSuccess(product);
+        setMessage(`Error: ${result.error}`);
+      }
+    } catch (error) {
+      // Revertir si hay error
+      onSuccess(product);
+      setMessage(`Error: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
+  }
+
+  function parsePriceToCents(value) {
+    if (value === null || value === undefined) return 0;
+    const normalized = String(value)
+      .trim()
+      .replace(/\s/g, "")
+      .replace(",", ".");
+    const num = Number.parseFloat(normalized);
+    if (!Number.isFinite(num) || num < 0) return 0;
+    return Math.round(num * 100);
   }
 
   return (

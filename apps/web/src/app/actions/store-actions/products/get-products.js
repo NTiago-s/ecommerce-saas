@@ -1,70 +1,59 @@
 "use server";
 
-import { getAdminToken } from "../../../../lib/get-admin-token";
+import { auth } from "../../../../auth";
+import { prisma } from "../../../../lib/prisma";
+import { callSaasApi, salesChannelHeader } from "../../../../lib/saas-api";
 
-const backendUrl = process.env.MEDUSA_BACKEND_URL;
+function salesChannelIdsFromStores(stores = []) {
+  return stores.map((store) => store.medusaSalesChannelId).filter(Boolean);
+}
 
-export async function getProductsFromMedusa(regionId, salesChannelIds) {
-  const token = await getAdminToken();
+function productsPath(salesChannelIds = []) {
+  const query = new URLSearchParams();
+  salesChannelIds.forEach((id) => query.append("sales_channel_id", id));
+  const qs = query.toString();
+  return qs ? `/saas/products?${qs}` : "/saas/products";
+}
 
-  if (!salesChannelIds || salesChannelIds.length === 0) return [];
+export async function getProductsFromMedusa(_regionId, salesChannelIds) {
+  const ids = Array.isArray(salesChannelIds)
+    ? salesChannelIds.filter(Boolean)
+    : [salesChannelIds].filter(Boolean);
 
-  const query = new URLSearchParams({
-    region_id: regionId,
-    fields: "*variants.prices",
+  if (!ids.length) return [];
+
+  const data = await callSaasApi(productsPath(ids), {
+    method: "GET",
+    headers: salesChannelHeader(ids),
   });
 
-  // Add multiple sales channels to query
-  if (Array.isArray(salesChannelIds)) {
-    salesChannelIds.forEach((id) => {
-      query.append("sales_channel_id[]", id);
-    });
-  } else {
-    // Single sales channel (backward compatibility)
-    query.append("sales_channel_id[]", salesChannelIds);
-  }
-
-  const res = await fetch(`${backendUrl}/admin/products?${query}`, {
-    headers: {
-      authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    next: { revalidate: 0 },
-  });
-
-  const data = await res.json();
   return data.products || [];
 }
 
-// New function to get products grouped by sales channel
-export async function getProductsGroupedByChannel(regionId, stores) {
-  const token = await getAdminToken();
-
+export async function getProductsGroupedByChannel(_regionId, stores) {
   if (!stores || stores.length === 0) return {};
 
+  const allowedIds = salesChannelIdsFromStores(stores);
+  if (!allowedIds.length) return {};
+
+  const data = await callSaasApi(productsPath(allowedIds), {
+    method: "GET",
+    headers: salesChannelHeader(allowedIds),
+  });
+
+  const products = data.products || [];
   const results = {};
 
   for (const store of stores) {
     if (!store.medusaSalesChannelId) continue;
 
-    const query = new URLSearchParams({
-      region_id: regionId,
-      "sales_channel_id[]": store.medusaSalesChannelId,
-      fields: "*variants.prices",
-    });
-
-    const res = await fetch(`${backendUrl}/admin/products?${query}`, {
-      headers: {
-        authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      next: { revalidate: 0 },
-    });
-
-    const data = await res.json();
     results[store.id] = {
       store,
-      products: data.products || [],
+      products: products.filter((product) =>
+        (product.sales_channels || []).some(
+          (channel) => channel.id === store.medusaSalesChannelId,
+        ),
+      ),
     };
   }
 
@@ -72,23 +61,31 @@ export async function getProductsGroupedByChannel(regionId, stores) {
 }
 
 export async function getProductById(productId, storeId) {
-  const token = await getAdminToken();
+  const session = await auth();
+  const userId = session?.user?.id;
 
-  if (!productId) return null;
+  if (!userId || !productId) return null;
 
-  const res = await fetch(`${backendUrl}/admin/products/${productId}`, {
-    headers: {
-      authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
+  const stores = await prisma.store.findMany({
+    where: {
+      ownerId: userId,
+      ...(storeId ? { id: storeId } : {}),
     },
-    next: { revalidate: 0 },
+    select: { medusaSalesChannelId: true },
   });
 
-  if (!res.ok) {
-    console.error(`Failed to fetch product ${productId}:`, res.status);
+  const allowedIds = salesChannelIdsFromStores(stores);
+  if (!allowedIds.length) return null;
+
+  try {
+    const data = await callSaasApi(`/saas/products/${productId}`, {
+      method: "GET",
+      headers: salesChannelHeader(allowedIds),
+    });
+
+    return data.product || null;
+  } catch (error) {
+    console.error(`Failed to fetch product ${productId}:`, error.message);
     return null;
   }
-
-  const data = await res.json();
-  return data.product || null;
 }

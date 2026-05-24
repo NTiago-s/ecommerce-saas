@@ -22,26 +22,22 @@ export async function registerUser(formData) {
   const password = formData.get("password");
   const phone = formData.get("phone")?.trim();
 
-  // Validaciones básicas
   if (!email || !password || !phone) {
-    throw new Error("Email, contraseña y teléfono son obligatorios");
+    throw new Error("Email, contrasena y telefono son obligatorios");
   }
 
-  // Validar formato de email
   if (!validateEmail(email)) {
-    throw new Error("Formato de email inválido");
+    throw new Error("Formato de email invalido");
   }
 
-  // Validar contraseña
   if (!validatePassword(password)) {
     throw new Error(
-      "La contraseña debe tener al menos 8 caracteres, incluir un número y una letra",
+      "La contrasena debe tener al menos 8 caracteres, incluir un numero y una letra",
     );
   }
 
-  // Validar teléfono
   if (!validatePhone(phone)) {
-    throw new Error("Formato de teléfono inválido");
+    throw new Error("Formato de telefono invalido");
   }
 
   try {
@@ -55,7 +51,6 @@ export async function registerUser(formData) {
 
     const hashedPassword = await bcrypt.hash(password, 12);
 
-    // Crear usuario primero
     const user = await prisma.user.create({
       data: {
         email,
@@ -64,18 +59,6 @@ export async function registerUser(formData) {
       },
     });
 
-    // Crear suscripción asociada al usuario
-    const subscription = await prisma.subscription.create({
-      data: {
-        userId: user.id,
-        planId: "cmlp6mj3h000124kgx7e14dl7",
-        status: "TRIAL",
-        trialStartedAt: new Date(),
-        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // 14 días de trial
-      },
-    });
-
-    // Retornar usuario con sus relaciones
     return await prisma.user.findUnique({
       where: { id: user.id },
       select: {

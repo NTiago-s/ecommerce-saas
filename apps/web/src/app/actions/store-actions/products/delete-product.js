@@ -1,16 +1,11 @@
 "use server";
 
-import { getAdminToken } from "../../../../lib/get-admin-token";
-import { prisma } from "../../../../lib/prisma";
 import { auth } from "../../../../auth";
+import { prisma } from "../../../../lib/prisma";
+import { callSaasApi, salesChannelHeader } from "../../../../lib/saas-api";
 
-export async function deleteMedusaProduct(productId, storeId) {
-  const session = await auth();
-  const userId = session?.user?.id;
-
-  if (!userId) return { success: false, error: "No autenticado" };
-
-  const userStore = await prisma.store.findFirst({
+async function getAllowedSalesChannelIds(userId, storeId) {
+  const stores = await prisma.store.findMany({
     where: {
       ownerId: userId,
       ...(storeId ? { id: storeId } : {}),
@@ -18,30 +13,33 @@ export async function deleteMedusaProduct(productId, storeId) {
     select: { medusaSalesChannelId: true },
   });
 
-  if (!userStore?.medusaSalesChannelId) {
+  return stores.map((store) => store.medusaSalesChannelId).filter(Boolean);
+}
+
+export async function deleteMedusaProduct(productId, storeId) {
+  const session = await auth();
+  const userId = session?.user?.id;
+
+  if (!userId) return { success: false, error: "No autenticado" };
+
+  const allowedSalesChannelIds = await getAllowedSalesChannelIds(
+    userId,
+    storeId,
+  );
+
+  if (!allowedSalesChannelIds.length) {
     return { success: false, error: "No tienes una tienda configurada" };
   }
 
-  const token = await getAdminToken();
-  const backendUrl = process.env.MEDUSA_BACKEND_URL;
-
   try {
-    const response = await fetch(`${backendUrl}/admin/products/${productId}`, {
+    await callSaasApi(`/saas/products/${productId}`, {
       method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
+      headers: salesChannelHeader(allowedSalesChannelIds),
     });
-
-    if (!response.ok) {
-      const data = await response.json();
-      throw new Error(data.message || "Error al eliminar producto");
-    }
 
     return { success: true };
   } catch (error) {
-    console.error("Error detallado:", error);
+    console.error("Error eliminando producto:", error);
     return { success: false, error: error.message };
   }
 }
@@ -52,61 +50,33 @@ export async function toggleProductStatus(productId, storeId) {
 
   if (!userId) return { success: false, error: "No autenticado" };
 
-  const userStore = await prisma.store.findFirst({
-    where: {
-      ownerId: userId,
-      ...(storeId ? { id: storeId } : {}),
-    },
-    select: { medusaSalesChannelId: true },
-  });
+  const allowedSalesChannelIds = await getAllowedSalesChannelIds(
+    userId,
+    storeId,
+  );
 
-  if (!userStore?.medusaSalesChannelId) {
+  if (!allowedSalesChannelIds.length) {
     return { success: false, error: "No tienes una tienda configurada" };
   }
 
-  const token = await getAdminToken();
-  const backendUrl = process.env.MEDUSA_BACKEND_URL;
-
   try {
-    // First get current product
-    const getProductResponse = await fetch(
-      `${backendUrl}/admin/products/${productId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
-
-    if (!getProductResponse.ok) {
-      throw new Error("No se pudo obtener el producto actual");
-    }
-
-    const currentProduct = await getProductResponse.json();
-    const newStatus =
-      currentProduct.product.status === "published" ? "draft" : "published";
-
-    // Update product status
-    const response = await fetch(`${backendUrl}/admin/products/${productId}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-      body: JSON.stringify({
-        status: newStatus,
-      }),
+    const current = await callSaasApi(`/saas/products/${productId}`, {
+      method: "GET",
+      headers: salesChannelHeader(allowedSalesChannelIds),
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.message || "Error al cambiar estado del producto");
-    }
+    const newStatus =
+      current.product.status === "published" ? "draft" : "published";
+
+    const data = await callSaasApi(`/saas/products/${productId}`, {
+      method: "POST",
+      headers: salesChannelHeader(allowedSalesChannelIds),
+      body: JSON.stringify({ status: newStatus }),
+    });
 
     return { success: true, data: data.product };
   } catch (error) {
-    console.error("Error detallado:", error);
+    console.error("Error cambiando estado del producto:", error);
     return { success: false, error: error.message };
   }
 }

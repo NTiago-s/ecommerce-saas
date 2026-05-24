@@ -3,8 +3,12 @@
 import prisma from "../../../lib/prisma";
 
 export async function getPublicPlans() {
+  const validPlanNames = ["Prueba", "Basico", "Intermedio", "Profesional"];
+
   const plans = await prisma.plan.findMany({
-    orderBy: { price: "asc" },
+    where: {
+      name: { in: validPlanNames },
+    },
     select: {
       id: true,
       name: true,
@@ -19,5 +23,12 @@ export async function getPublicPlans() {
     },
   });
 
-  return plans;
+  const order = {
+    Prueba: 0,
+    Basico: 1,
+    Intermedio: 2,
+    Profesional: 3,
+  };
+
+  return plans.sort((a, b) => (order[a.name] ?? 99) - (order[b.name] ?? 99));
 }

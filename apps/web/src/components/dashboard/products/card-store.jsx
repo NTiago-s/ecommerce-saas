@@ -1,4 +1,5 @@
 "use client";
+
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { MoreVertical, Pencil, Trash2, Lock, Unlock } from "lucide-react";
@@ -20,11 +21,8 @@ export default function ProductCard({
     variant?.calculated_price?.calculated_amount ||
     variant?.prices?.[0]?.amount ||
     0;
-
-  const priceNumber =
-    typeof rawPrice === "number" ? rawPrice : Number(rawPrice) || 0;
+  const priceNumber = typeof rawPrice === "number" ? rawPrice : Number(rawPrice) || 0;
   const priceInUnits = priceNumber / 100;
-
   const formattedPrice = priceInUnits.toLocaleString("en-US", {
     style: "currency",
     currency: "USD",
@@ -33,172 +31,131 @@ export default function ProductCard({
   const [showActions, setShowActions] = useState(false);
 
   const handleToggleStatus = async () => {
+    const newStatus = product.status === "published" ? "draft" : "published";
+    const updatedProduct = { ...product, status: newStatus };
+
+    if (typeof onUpdate === "function") onUpdate(updatedProduct);
+
     try {
       const result = await toggleProductStatus(product.id, storeId);
-
-      if (result.success) {
-        if (typeof onUpdate === "function") {
-          onUpdate({
-            ...product,
-            status: product.status === "published" ? "draft" : "published",
-          });
-        }
-      } else {
-        console.error("Error toggling product status:", result.error);
-      }
+      if (!result.success) throw new Error(result.error || "No se pudo cambiar el estado");
+      if (typeof onUpdate === "function") onUpdate(result.data);
     } catch (error) {
       console.error("Error toggling product status:", error);
+      if (typeof onUpdate === "function") onUpdate(product);
+    } finally {
+      setShowActions(false);
     }
   };
 
   const handleDelete = async () => {
-    if (
-      window.confirm("¿Estás seguro de que quieres eliminar este producto?")
-    ) {
-      try {
-        const result = await deleteMedusaProduct(product.id, storeId);
+    if (!window.confirm("¿Estás seguro de que quieres eliminar este producto?")) {
+      return;
+    }
 
-        if (!result.success) {
-          throw new Error(result.error || "No se pudo eliminar el producto");
-        }
-
-        if (typeof onDelete === "function") {
-          onDelete(product.id);
-        }
-      } catch (error) {
-        console.error("Error deleting product:", error);
-      }
+    try {
+      const result = await deleteMedusaProduct(product.id, storeId);
+      if (!result.success) throw new Error(result.error || "No se pudo eliminar el producto");
+      if (typeof onDelete === "function") onDelete(product.id);
+    } catch (error) {
+      console.error("Error deleting product:", error);
     }
   };
 
   return (
     <article
-      className="group bg-white rounded-2xl shadow-lg overflow-hidden border border-gray-200 hover:shadow-2xl transition-all duration-300 mt-6 relative"
-      aria-label={`Producto: ${product.title} - Precio: ${formattedPrice} - Estado: ${product.status === "published" ? "Activo" : "Inactivo"}`}
+      className="surface group relative overflow-hidden"
+      aria-label={`Producto: ${product.title} - Precio: ${formattedPrice} - Estado: ${
+        product.status === "published" ? "Activo" : "Inactivo"
+      }`}
     >
-      {/* Status Badge */}
-      <div className="absolute top-3 left-3 z-10">
+      <div className="absolute left-4 top-4 z-10">
         <span
-          className={`text-white text-xs px-3 py-1 rounded-full shadow-lg ${
-            product.status === "published" ? "bg-green-600" : "bg-gray-600"
-          }`}
-          role="status"
-          aria-label={`Estado del producto: ${
-            product.status === "published" ? "Activo" : "Inactivo"
+          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${
+            product.status === "published"
+              ? "bg-emerald-50 text-emerald-700"
+              : "bg-slate-100 text-slate-600"
           }`}
         >
           {product.status === "published" ? "Activo" : "Inactivo"}
         </span>
       </div>
 
-      {/* Actions Menu */}
-      <div className="absolute top-3 right-3 z-10">
+      <div className="absolute right-4 top-4 z-10">
         <button
-          onClick={() => setShowActions(!showActions)}
-          className="bg-white/90 backdrop-blur-sm p-2 rounded-lg shadow-md hover:bg-white transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          onClick={() => setShowActions((value) => !value)}
+          className="inline-flex size-10 items-center justify-center rounded-full border border-[var(--border)] bg-white text-slate-700 shadow-sm hover:bg-slate-50"
           aria-label="Abrir menú de acciones del producto"
           aria-expanded={showActions}
           aria-haspopup="menu"
           type="button"
         >
-          <MoreVertical className="size-5 text-gray-700" aria-hidden="true" />
+          <MoreVertical className="size-5" aria-hidden="true" />
         </button>
 
-        {showActions && (
-          <div
-            className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20"
-            role="menu"
-            aria-label="Acciones del producto"
-          >
+        {showActions ? (
+          <div className="absolute right-0 mt-2 w-48 overflow-hidden rounded-2xl border border-[var(--border)] bg-white p-1 shadow-[0_20px_50px_rgba(15,23,42,0.12)]">
             <button
               onClick={() => {
                 onEdit(product);
                 setShowActions(false);
               }}
-              className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
-              role="menuitem"
-              aria-label="Editar producto"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
               type="button"
             >
-              <span className="flex items-center gap-2">
-                <Pencil className="size-4 text-gray-600" aria-hidden="true" />
-                Editar
-              </span>
+              <Pencil className="size-4" aria-hidden="true" />
+              Editar
             </button>
             <button
               onClick={handleToggleStatus}
-              className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-inset"
-              role="menuitem"
-              aria-label={`${
-                product.status === "published" ? "Desactivar" : "Activar"
-              } producto`}
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-100"
               type="button"
             >
-              <span className="flex items-center gap-2">
-                {product.status === "published" ? (
-                  <Lock className="size-4 text-gray-600" aria-hidden="true" />
-                ) : (
-                  <Unlock className="size-4 text-gray-600" aria-hidden="true" />
-                )}
-                {product.status === "published" ? "Desactivar" : "Activar"}
-              </span>
+              {product.status === "published" ? (
+                <Lock className="size-4" aria-hidden="true" />
+              ) : (
+                <Unlock className="size-4" aria-hidden="true" />
+              )}
+              {product.status === "published" ? "Desactivar" : "Activar"}
             </button>
             <button
               onClick={handleDelete}
-              className="w-full text-left px-4 py-2 text-sm hover:bg-red-50 text-red-600 transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-inset"
-              role="menuitem"
-              aria-label="Eliminar producto permanentemente"
+              className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
               type="button"
             >
-              <span className="flex items-center gap-2">
-                <Trash2 className="size-4" aria-hidden="true" />
-                Eliminar
-              </span>
+              <Trash2 className="size-4" aria-hidden="true" />
+              Eliminar
             </button>
           </div>
-        )}
+        ) : null}
       </div>
 
-      {/* Imagen */}
-      <div className="relative h-56 w-full overflow-hidden">
+      <div className="relative h-56 overflow-hidden bg-slate-100">
         <img
           src={product.thumbnail || "/placeholder.jpg"}
           alt={product.title}
-          className="object-cover w-full h-full group-hover:scale-110 transition-transform duration-500"
+          className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
           loading="lazy"
           decoding="async"
         />
       </div>
 
-      {/* Contenido */}
-      <div className="p-6">
-        <header>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">
-            {product.title}
-          </h2>
-        </header>
-
-        <p
-          className="text-gray-500 text-sm h-12 overflow-hidden"
-          aria-label={`Descripción: ${product.description || "Sin descripción disponible"}`}
-        >
+      <div className="p-5">
+        <h2 className="text-lg font-semibold tracking-tight text-slate-950">
+          {product.title}
+        </h2>
+        <p className="mt-2 line-clamp-2 text-sm leading-6 text-slate-600">
           {product.description || "Sin descripción disponible."}
         </p>
 
-        <div className="flex justify-between items-center mt-6">
-          <span
-            className="text-xl font-bold text-blue-600"
-            aria-label={`Precio: ${formattedPrice}`}
-          >
+        <div className="mt-5 flex items-center justify-between gap-3">
+          <span className="text-lg font-semibold text-[var(--accent)]">
             {formattedPrice}
           </span>
-
           <button
-            onClick={() =>
-              router.push(`/dashboard/${product.id}?storeId=${storeId}`)
-            }
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            aria-label="Ver detalles completos del producto"
+            onClick={() => router.push(`/dashboard/${product.id}?storeId=${storeId}`)}
+            className="rounded-full bg-slate-950 px-4 py-2 text-sm font-medium text-white transition hover:bg-slate-800"
+            type="button"
           >
             Ver más
           </button>
@@ -207,3 +164,4 @@ export default function ProductCard({
     </article>
   );
 }
+

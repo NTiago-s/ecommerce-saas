@@ -1,8 +1,8 @@
 "use server";
 
-import { getAdminToken } from "../../../../lib/get-admin-token";
-import { prisma } from "../../../../lib/prisma";
 import { auth } from "../../../../auth";
+import { prisma } from "../../../../lib/prisma";
+import { callSaasApi, salesChannelHeader } from "../../../../lib/saas-api";
 
 function parsePriceToCents(value) {
   if (value === null || value === undefined) return 0;
@@ -30,39 +30,25 @@ export async function updateMedusaProduct(productId, productData, storeId) {
     return { success: false, error: "No tienes una tienda configurada" };
   }
 
-  const token = await getAdminToken();
-  const backendUrl = process.env.MEDUSA_BACKEND_URL;
+  const allowedSalesChannelIds = [userStore.medusaSalesChannelId];
 
   try {
-    // First get the current product to preserve existing data
-    const getProductResponse = await fetch(
-      `${backendUrl}/admin/products/${productId}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      },
-    );
+    const current = await callSaasApi(`/saas/products/${productId}`, {
+      method: "GET",
+      headers: salesChannelHeader(allowedSalesChannelIds),
+    });
 
-    if (!getProductResponse.ok) {
-      throw new Error("No se pudo obtener el producto actual");
-    }
+    const currentProduct = current.product;
+    const currentVariant = currentProduct.variants?.[0];
+    const currentPrice = currentVariant?.prices?.[0];
 
-    const currentProduct = await getProductResponse.json();
-    const currentVariant = currentProduct.product.variants?.[0];
-
-    // Update the product
-    const response = await fetch(`${backendUrl}/admin/products/${productId}`, {
+    const data = await callSaasApi(`/saas/products/${productId}`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
+      headers: salesChannelHeader(allowedSalesChannelIds),
       body: JSON.stringify({
         title: productData.title,
         description: productData.description,
-        status: productData.status || currentProduct.product.status,
+        status: productData.status || currentProduct.status,
         variants: [
           {
             id: currentVariant?.id,
@@ -70,9 +56,9 @@ export async function updateMedusaProduct(productId, productData, storeId) {
             sku: productData.sku || currentVariant?.sku,
             prices: [
               {
-                id: currentVariant?.prices?.[0]?.id,
+                id: currentPrice?.id,
                 amount: parsePriceToCents(productData.price),
-                currency_code: "usd",
+                currency_code: currentPrice?.currency_code || "usd",
               },
             ],
           },
@@ -80,14 +66,9 @@ export async function updateMedusaProduct(productId, productData, storeId) {
       }),
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.message || "Error al actualizar producto");
-    }
-
     return { success: true, data: data.product };
   } catch (error) {
-    console.error("Error detallado:", error);
+    console.error("Error actualizando producto:", error);
     return { success: false, error: error.message };
   }
 }

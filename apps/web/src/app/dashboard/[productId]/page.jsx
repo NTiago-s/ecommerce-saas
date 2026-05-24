@@ -4,6 +4,14 @@ import { getProductById } from "../../actions/store-actions/products/get-product
 import { redirect } from "next/navigation";
 import ProductDetailClient from "../../../components/dashboard/products/product-detail-client";
 
+export const metadata = {
+  title: "Detalle de producto | Codeluxe Store",
+  robots: {
+    index: false,
+    follow: false,
+  },
+};
+
 export default async function ProductDetailPage({ params, searchParams }) {
   const session = await auth();
 

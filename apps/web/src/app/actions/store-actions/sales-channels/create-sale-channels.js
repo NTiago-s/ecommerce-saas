@@ -1,8 +1,18 @@
 "use server";
 
-import { getAdminToken } from "../../../../lib/get-admin-token";
+import { callSaasApi } from "../../../../lib/saas-api";
 import { prisma } from "../../../../lib/prisma";
 import { auth } from "../../../../auth";
+
+function normalizeStoreSlug(value) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
 
 export async function createSalesChannel({
   name,
@@ -35,6 +45,16 @@ export async function createSalesChannel({
     );
   }
 
+  const normalizedSubdomain = normalizeStoreSlug(subdomain);
+
+  if (!String(name ?? "").trim()) {
+    throw new Error("Debes ingresar un nombre para la tienda.");
+  }
+
+  if (!normalizedSubdomain || normalizedSubdomain.length < 3) {
+    throw new Error("El slug de la tienda debe tener al menos 3 caracteres.");
+  }
+
   // 3. VERIFICAR LÍMITE DE TIENDAS (maxStores)
   if (
     subscription.plan.maxStores &&
@@ -45,38 +65,40 @@ export async function createSalesChannel({
     );
   }
 
+  const existingStore = await prisma.store.findUnique({
+    where: { subdomain: normalizedSubdomain },
+    select: { id: true },
+  });
+
+  if (existingStore) {
+    throw new Error("Ese slug ya está en uso. Elige otro para tu tienda.");
+  }
+
   // 4. Crear la tienda en Prisma incluyendo el subscriptionId
   // Nota: Tu schema exige subscriptionId, si no lo pones aquí, Prisma dará error.
   const newStore = await prisma.store.create({
     data: {
-      name,
-      subdomain,
+      name: String(name).trim(),
+      subdomain: normalizedSubdomain,
       ownerId: userId,
       subscriptionId: subscription.id, // Vínculo obligatorio según tu schema
     },
   });
 
   try {
-    const token = await getAdminToken();
-    const baseUrl = process.env.MEDUSA_BACKEND_URL;
-
-    // 5. Crear el Sales Channel en Medusa
-    const res = await fetch(`${baseUrl}/admin/sales-channels`, {
+    const data = await callSaasApi("/saas/sales-channels", {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
       body: JSON.stringify({
-        name: name,
-        description: description,
+        name: String(name).trim(),
+        description,
         is_disabled: !enabled,
+        metadata: {
+          saas_store_id: newStore.id,
+          saas_owner_id: userId,
+          subdomain: normalizedSubdomain,
+        },
       }),
     });
-
-    const data = await res.json();
-
-    if (!res.ok) throw new Error(data.message || "Error en Medusa");
 
     // 6. Actualizar la Store con los IDs de Medusa
     await prisma.store.update({

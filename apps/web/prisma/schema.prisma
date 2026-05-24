@@ -59,7 +59,7 @@ model Plan {
   name          String
   price         Int
   currency      String         @default("usd")
-  stripePriceId String         @unique
+  stripePriceId String?        @unique
   maxProducts   Int?
   maxOrders     Int?
   maxStaff      Int?
@@ -67,6 +67,12 @@ model Plan {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   maxStores     Int?
+
+  // Mercado Pago Subscriptions (preapproval_plan) mapping.
+  mpPreapprovalPlanId String?  @unique
+  // Last ARS amount we pushed to Mercado Pago for this plan (whole pesos).
+  mpLastArsAmount      Int?
+  mpLastFxAt           DateTime?
   subscriptions Subscription[]
 }
 

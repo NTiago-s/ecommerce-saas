@@ -1,50 +1,54 @@
 const STEPS = [
   {
-    step: "1",
-    title: "Crea tu cuenta",
-    description: "Regístrate y accede al panel.",
+    step: "01",
+    title: "Elegis un plan",
+    description:
+      "Comparas opciones claras y te quedas con la que encaja con tu etapa.",
   },
   {
-    step: "2",
-    title: "Activa tu tienda",
-    description: "Elige un plan y configura tu tienda.",
+    step: "02",
+    title: "Creas tu cuenta",
+    description:
+      "Registras tu negocio y dejas lista la base para empezar a operar.",
   },
   {
-    step: "3",
-    title: "Empieza a vender",
-    description: "Publica productos y cobra pagos.",
+    step: "03",
+    title: "Lanzas tu tienda",
+    description:
+      "La cuenta queda preparada para que tu ecommerce empiece a vender.",
   },
 ];
 
 export default function HowItWorks() {
   return (
-    <section className="bg-gray-50 py-16 sm:py-20">
+    <section className="py-16 sm:py-20" aria-labelledby="how-it-works-title">
       <div className="mx-auto max-w-7xl px-6">
-        <div className="mx-auto max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-gray-900">
-            Empieza en minutos
+        <div className="max-w-2xl">
+          <h2
+            id="how-it-works-title"
+            className="text-3xl font-semibold tracking-tight text-slate-950 sm:text-4xl"
+          >
+            Tres pasos para poner tu ecommerce en marcha
           </h2>
-          <p className="mt-3 text-base text-gray-600">
-            Un flujo simple para activar tu tienda y empezar a vender.
+          <p className="mt-4 max-w-xl text-base leading-7 text-slate-600">
+            El recorrido elimina friccion y lleva a la accion principal: elegir
+            un plan y arrancar.
           </p>
         </div>
 
-        <div className="mt-10 grid gap-6 md:grid-cols-3">
+        <div className="mt-10 grid gap-4 lg:grid-cols-3">
           {STEPS.map((item) => (
-            <div
-              key={item.step}
-              className="rounded-2xl border border-gray-200 bg-white p-6 text-center shadow-sm"
-            >
-              <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-blue-600 text-white font-bold">
+            <article key={item.step} className="surface p-6">
+              <div className="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">
                 {item.step}
               </div>
-
-              <h3 className="mt-4 text-lg font-semibold text-gray-900">
+              <h3 className="mt-4 text-lg font-semibold text-slate-950">
                 {item.title}
               </h3>
-
-              <p className="mt-2 text-gray-600">{item.description}</p>
-            </div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                {item.description}
+              </p>
+            </article>
           ))}
         </div>
       </div>

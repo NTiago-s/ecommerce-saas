@@ -1,15 +1,17 @@
 export default function InfoItem({ label, value, badge = false }) {
   return (
-    <div>
-      <p className="text-sm text-gray-500">{label}</p>
-
+    <div className="rounded-2xl border border-[var(--border)] bg-white px-4 py-4">
+      <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">
+        {label}
+      </p>
       {badge ? (
-        <span className="inline-block mt-1 px-3 py-1 text-sm rounded-full bg-green-100 text-green-700">
+        <span className="mt-2 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700">
           {value}
         </span>
       ) : (
-        <p className="font-medium text-gray-800">{value}</p>
+        <p className="mt-2 text-sm font-semibold text-slate-900">{value}</p>
       )}
     </div>
   );
 }
+

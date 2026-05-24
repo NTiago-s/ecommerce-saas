@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 export default function Button({
   children,
   variant = "primary",
@@ -6,43 +8,55 @@ export default function Button({
   fullWidth = false,
   href,
   disabled = false,
+  type,
   ...props
 }) {
   const base =
-    "inline-flex items-center justify-center rounded-xl font-bold transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-70 disabled:cursor-not-allowed";
+    "inline-flex cursor-pointer items-center justify-center gap-2 rounded-full font-medium transition duration-150 focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60";
 
-  // Variantes consistentes con Login / Register
   const variants = {
-    primary: "bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500",
-    light:
-      "bg-white text-blue-600 hover:bg-blue-50 focus:ring-white border border-gray-200",
-    secondary:
-      "border border-white/40 text-white hover:bg-white/10 focus:ring-white",
+    primary:
+      "bg-[var(--accent)] text-white shadow-sm hover:bg-blue-700 active:bg-blue-800",
     outline:
-      "border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-600",
-    ghost: "text-blue-600 hover:bg-blue-50",
+      "border border-[var(--border-strong)] bg-white text-slate-900 hover:bg-slate-50",
+    light:
+      "bg-slate-100 text-slate-900 hover:bg-slate-200",
+    secondary:
+      "border border-white/20 bg-white/10 text-white hover:bg-white/15",
+    ghost: "text-slate-700 hover:bg-slate-100",
   };
 
   const sizes = {
     sm: "px-4 py-2 text-sm",
-    md: "px-6 py-3 text-base",
-    lg: "px-8 py-4 text-lg",
+    md: "px-5 py-3 text-sm",
+    lg: "px-6 py-3.5 text-base",
   };
 
-  const classes = `
-    ${base}
-    ${variants[variant]}
-    ${sizes[size]}
-    ${fullWidth ? "w-full" : ""}
-    ${className}
-  `;
+  const classes = [
+    base,
+    variants[variant] ?? variants.primary,
+    sizes[size] ?? sizes.md,
+    fullWidth ? "w-full" : "",
+    className,
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  return href ? (
-    <a href={href} className={classes} {...props}>
-      {children}
-    </a>
-  ) : (
-    <button className={classes} disabled={disabled} {...props}>
+  if (href) {
+    return (
+      <Link href={href} className={classes} {...props}>
+        {children}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      className={classes}
+      disabled={disabled}
+      type={type ?? "button"}
+      {...props}
+    >
       {children}
     </button>
   );

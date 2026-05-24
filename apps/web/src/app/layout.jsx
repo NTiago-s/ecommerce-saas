@@ -2,11 +2,19 @@ import "./globals.css";
 import Header from "../components/header";
 
 export const metadata = {
-  title: "Codeluxe Store - Plataforma Ecommerce SaaS",
+  title: {
+    default: "Codeluxe Store",
+    template: "%s | Codeluxe Store",
+  },
   description:
-    "Crea tu tienda online fácilmente con Codeluxe Store. Plataforma ecommerce SaaS con todo lo que necesitas para vender online: catálogo de productos, pagos seguros, gestión de inventario y más.",
-  keywords:
-    "ecommerce, tienda online, SaaS, plataforma ecommerce, vender online, catálogo productos, gestión inventario",
+    "Crea tu ecommerce con planes mensuales, una experiencia minimalista y una base preparada para vender.",
+  keywords: [
+    "crear ecommerce",
+    "planes ecommerce",
+    "tienda online",
+    "suscripcion ecommerce",
+    "marca propia online",
+  ],
   authors: [{ name: "Codeluxe Store" }],
   creator: "Codeluxe Store",
   publisher: "Codeluxe Store",
@@ -19,18 +27,18 @@ export const metadata = {
     process.env.NEXT_PUBLIC_SITE_URL || "https://codeluxe-store.com",
   ),
   openGraph: {
-    title: "Codeluxe Store - Plataforma Ecommerce SaaS",
+    title: "Codeluxe Store",
     description:
-      "Crea tu tienda online fácilmente con Codeluxe Store. Plataforma ecommerce SaaS con todo lo que necesitas para vender online.",
+      "Crea tu ecommerce con planes simples, una experiencia clara y una base preparada para crecer.",
     type: "website",
     locale: "es_ES",
     siteName: "Codeluxe Store",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Codeluxe Store - Plataforma Ecommerce SaaS",
+    title: "Codeluxe Store",
     description:
-      "Crea tu tienda online fácilmente con Codeluxe Store. Plataforma ecommerce SaaS con todo lo que necesitas para vender online.",
+      "Crea tu ecommerce con planes simples y una base preparada para escalar.",
   },
   robots: {
     index: true,
@@ -53,7 +61,7 @@ export default function RootLayout({ children }) {
     <html lang="es">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <meta name="theme-color" content="#2563eb" />
+        <meta name="theme-color" content="#1d4ed8" />
         <link
           rel="canonical"
           href={
@@ -61,7 +69,7 @@ export default function RootLayout({ children }) {
           }
         />
       </head>
-      <body className="min-h-screen bg-white antialiased">
+      <body className="min-h-screen antialiased">
         <Header />
         {children}
       </body>

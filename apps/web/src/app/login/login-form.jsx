@@ -1,31 +1,25 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import {
-  Mail,
-  Lock,
-  Loader2,
-  AlertCircle,
-  ArrowRight,
-  Eye,
-  EyeOff,
-} from "lucide-react";
+import { Eye, EyeOff, Loader2, Mail, Lock, ArrowRight, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import AuthShell from "../../components/auth/auth-shell";
+import Button from "../../ui/button";
 
 export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
-    setError(null);
+    setError("");
 
     try {
       const res = await signIn("credentials", {
@@ -37,194 +31,122 @@ export default function LoginForm() {
       if (res?.error) {
         setError(
           res.error === "CredentialsSignin"
-            ? "Credenciales inválidas. Inténtalo de nuevo."
+            ? "Credenciales invalidas. Intenta de nuevo."
             : res.error,
         );
-        setLoading(false);
-      } else {
-        router.push("/dashboard");
-        router.refresh();
+        return;
       }
-    } catch (err) {
-      setError("Ocurrió un error inesperado.");
+
+      router.push("/dashboard");
+      router.refresh();
+    } catch {
+      setError("Ocurrio un error inesperado.");
+    } finally {
       setLoading(false);
     }
   }
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-slate-50 px-4">
-      <section
-        className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-xl border border-slate-100"
-        aria-labelledby="login-title"
-      >
-        {/* Header */}
-        <header className="text-center">
-          <div
-            className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-600 text-white mb-4 shadow-lg shadow-blue-200"
-            aria-hidden="true"
+    <AuthShell
+      badge="Acceso"
+      title="Inicia sesion"
+      description="Accede para continuar con tu tienda, revisar tu cuenta o seguir el proceso de compra."
+      footer={
+        <p className="text-center text-sm text-slate-500">
+          ¿No tienes una cuenta?{" "}
+          <Link
+            href="/register"
+            className="font-semibold text-[var(--accent)] hover:underline"
           >
-            <Lock size={30} />
-          </div>
-          <h1
-            id="login-title"
-            className="text-3xl font-extrabold text-slate-900"
-          >
-            Bienvenido
-          </h1>
-          <p className="mt-2 text-sm text-slate-500">
-            Ingresa a tu panel de control de E-commerce
-          </p>
-        </header>
-
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit} noValidate>
-          <fieldset className="space-y-4">
-            <legend className="sr-only">Información de inicio de sesión</legend>
-            {/* Email */}
-            <div>
-              <label
-                htmlFor="email"
-                className="text-xs font-semibold text-slate-700 uppercase tracking-wider ml-1 block"
-              >
-                Correo Electrónico
-              </label>
-              <div className="relative mt-1">
-                <div
-                  className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"
-                  aria-hidden="true"
-                >
-                  <Mail size={18} />
-                </div>
+            Registrate gratis
+          </Link>
+        </p>
+      }
+    >
+      <div className="flex h-full flex-col justify-center">
+        <form onSubmit={handleSubmit} noValidate className="space-y-5">
+          <div className="space-y-4">
+            <label className="block">
+              <span className="mb-2 block text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+                Correo electronico
+              </span>
+              <div className="relative">
+                <Mail className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <input
-                  id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
                   autoComplete="email"
-                  placeholder="ejemplo@correo.com"
-                  className="block w-full pl-10 pr-3 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all sm:text-sm cursor-pointer"
-                  aria-describedby="email-help"
+                  placeholder="usuario@correo.com"
+                  className="w-full rounded-2xl border border-[var(--border)] bg-slate-50 px-11 py-3.5 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[var(--accent)] focus:bg-white focus:ring-2 focus:ring-blue-100"
                   aria-invalid={error ? "true" : "false"}
                 />
-                <span id="email-help" className="sr-only">
-                  Ingresa tu correo electrónico registrado
-                </span>
               </div>
-            </div>
+            </label>
 
-            {/* Password */}
-            <div>
-              <div className="flex justify-between items-center ml-1">
-                <label
-                  htmlFor="password"
-                  className="text-xs font-semibold text-slate-700 uppercase tracking-wider"
-                >
+            <label className="block">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
                   Contraseña
-                </label>
-                <a
+                </span>
+                <Link
                   href="/forgot-password"
-                  className="text-xs font-medium text-blue-600 hover:text-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-1 py-0.5"
-                  aria-label="Recuperar contraseña olvidada"
+                  className="text-xs font-medium text-slate-500 hover:text-slate-900"
                 >
                   ¿Olvidaste tu contraseña?
-                </a>
+                </Link>
               </div>
-
-              <div className="relative mt-1">
-                <div
-                  className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400"
-                  aria-hidden="true"
-                >
-                  <Lock size={18} />
-                </div>
-
+              <div className="relative">
+                <Lock className="pointer-events-none absolute left-4 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
                 <input
-                  id="password"
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
                   placeholder="••••••••"
-                  className="block w-full pl-10 pr-10 py-3 border border-slate-200 rounded-xl text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all sm:text-sm cursor-pointer"
-                  aria-describedby="password-help"
+                  className="w-full rounded-2xl border border-[var(--border)] bg-slate-50 px-11 py-3.5 pr-12 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-[var(--accent)] focus:bg-white focus:ring-2 focus:ring-blue-100"
                   aria-invalid={error ? "true" : "false"}
                 />
-                <span id="password-help" className="sr-only">
-                  Ingresa tu contraseña para acceder
-                </span>
-
                 <button
                   type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md p-1"
-                  aria-label={
-                    showPassword ? "Ocultar contraseña" : "Mostrar contraseña"
-                  }
-                  aria-pressed={showPassword}
+                  onClick={() => setShowPassword((value) => !value)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+                  aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
                 >
                   {showPassword ? (
-                    <EyeOff size={18} aria-hidden="true" />
+                    <EyeOff className="size-4" aria-hidden="true" />
                   ) : (
-                    <Eye size={18} aria-hidden="true" />
+                    <Eye className="size-4" aria-hidden="true" />
                   )}
                 </button>
               </div>
-            </div>
-          </fieldset>
+            </label>
+          </div>
 
-          {/* Error */}
-          {error && (
-            <div
-              className="flex items-center gap-2 p-3 text-sm text-red-600 bg-red-50 rounded-lg animate-in fade-in duration-300"
-              role="alert"
-              aria-live="polite"
-            >
-              <AlertCircle size={18} aria-hidden="true" />
+          {error ? (
+            <div className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <AlertCircle className="mt-0.5 size-4" aria-hidden="true" />
               <p>{error}</p>
             </div>
-          )}
+          ) : null}
 
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="group relative w-full flex justify-center py-3 px-4 border border-transparent text-sm font-bold rounded-xl text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all disabled:opacity-70 disabled:cursor-not-allowed cursor-pointer"
-            aria-label="Iniciar sesión en tu cuenta"
-            aria-describedby="submit-help"
-          >
+          <Button type="submit" size="lg" fullWidth disabled={loading}>
             {loading ? (
-              <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+              <>
+                <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                <span>Ingresando</span>
+              </>
             ) : (
-              <span className="flex items-center gap-2">
-                Iniciar Sesión
-                <ArrowRight
-                  size={18}
-                  className="group-hover:translate-x-1 transition-transform"
-                  aria-hidden="true"
-                />
-              </span>
+              <>
+                <span>Ingresar</span>
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </>
             )}
-          </button>
-          <span id="submit-help" className="sr-only">
-            Presiona para iniciar sesión con tus credenciales
-          </span>
+          </Button>
         </form>
-
-        {/* Footer */}
-        <footer className="text-center text-sm text-slate-500">
-          <p>
-            ¿No tienes una cuenta?{" "}
-            <a
-              href="/register"
-              className="font-semibold text-blue-600 hover:text-blue-500 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 rounded-md px-1 py-0.5"
-              aria-label="Crear una nueva cuenta"
-            >
-              Regístrate gratis
-            </a>
-          </p>
-        </footer>
-      </section>
-    </main>
+      </div>
+    </AuthShell>
   );
 }

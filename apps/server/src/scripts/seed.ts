@@ -1,15 +1,18 @@
-import { CreateInventoryLevelInput, ExecArgs } from "@medusajs/framework/types";
-import {
+type CreateInventoryLevelInput = any;
+type ExecArgs = any;
+type ApiKey = any;
+
+const {
   ContainerRegistrationKeys,
   Modules,
   ProductStatus,
-} from "@medusajs/framework/utils";
-import {
+} = require("@medusajs/framework/utils");
+const {
   createWorkflow,
   transform,
   WorkflowResponse,
-} from "@medusajs/framework/workflows-sdk";
-import {
+} = require("@medusajs/framework/workflows-sdk");
+const {
   createApiKeysWorkflow,
   createInventoryLevelsWorkflow,
   createProductCategoriesWorkflow,
@@ -24,8 +27,7 @@ import {
   linkSalesChannelsToStockLocationWorkflow,
   updateStoresStep,
   updateStoresWorkflow,
-} from "@medusajs/medusa/core-flows";
-import { ApiKey } from "../../.medusa/types/query-entry-points";
+} = require("@medusajs/core-flows");
 
 const updateStoreCurrencies = createWorkflow(
   "update-store-currencies",

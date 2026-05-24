@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+
+import { useEffect, useMemo, useState } from "react";
 import { Package } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import ProductGridClient from "./product-grid-client";
 import CreateProductForm from "./form-create-product";
 import EditProductForm from "./form-edit-product";
@@ -9,29 +10,33 @@ import EditProductForm from "./form-edit-product";
 export default function ProductsClientPage({ productsByStore, store, stores }) {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
+  const [productList, setProductList] = useState([]);
   const router = useRouter();
   const searchParams = useSearchParams();
 
   const selectedStoreId = store?.id;
 
-  // Get all products for the selected store view
-  const currentStoreData = productsByStore[selectedStoreId] || {
-    store,
-    products: [],
-  };
-  const [productList, setProductList] = useState(currentStoreData.products);
-
-  // Calculate total products across all stores
-  const allProducts = Object.values(productsByStore).flatMap(
-    (data) => data.products,
+  const currentStoreData = useMemo(
+    () => productsByStore?.[selectedStoreId] || { store, products: [] },
+    [productsByStore, selectedStoreId, store],
   );
-  const totalProductCount = allProducts.length;
+
+  useEffect(() => {
+    setProductList(currentStoreData.products || []);
+  }, [currentStoreData]);
+
+  const totalProductCount = useMemo(
+    () =>
+      Object.values(productsByStore || {}).reduce(
+        (sum, data) => sum + (data?.products?.length || 0),
+        0,
+      ),
+    [productsByStore],
+  );
 
   const handleProductCreated = (newProduct) => {
     setProductList((prev) => [newProduct, ...prev]);
     setShowCreateForm(false);
-    // Refresh page to get updated grouped data
-    router.refresh();
   };
 
   const handleProductUpdated = (updatedProduct) => {
@@ -39,12 +44,10 @@ export default function ProductsClientPage({ productsByStore, store, stores }) {
       prev.map((p) => (p.id === updatedProduct.id ? updatedProduct : p)),
     );
     setEditingProduct(null);
-    router.refresh();
   };
 
   const handleProductDeleted = (productId) => {
     setProductList((prev) => prev.filter((p) => p.id !== productId));
-    router.refresh();
   };
 
   const handleEditProduct = (product) => {
@@ -53,120 +56,136 @@ export default function ProductsClientPage({ productsByStore, store, stores }) {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="flex justify-between items-center mb-8">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Productos</h1>
-            <p className="text-gray-600 mt-2">
-              Gestiona los productos de tus {stores.length} tienda(s) ·{" "}
-              {totalProductCount} productos en total
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            {Array.isArray(stores) && stores.length > 1 && (
-              <select
-                value={selectedStoreId}
-                onChange={(e) => {
-                  const nextId = e.target.value;
-                  const next = new URLSearchParams(searchParams?.toString());
-                  next.set("storeId", nextId);
-                  router.push(`/dashboard/products?${next.toString()}`);
-                }}
-                className="border border-gray-300 rounded-lg px-3 py-2 bg-white"
-              >
-                {stores.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            <button
-              onClick={() => {
-                setShowCreateForm(true);
-                setEditingProduct(null);
-              }}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-            >
-              + Nuevo Producto
-            </button>
-          </div>
+    <div className="space-y-6">
+      <section className="surface flex flex-col gap-4 p-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="max-w-2xl">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+            Productos
+          </p>
+          <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+            Catálogo y edición
+          </h1>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            Gestiona los productos de tus {stores.length} tienda(s) ·{" "}
+            {totalProductCount} productos en total
+          </p>
         </div>
 
-        {/* Forms */}
-        {showCreateForm && !editingProduct && (
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Crear Nuevo Producto</h2>
-              <button
-                onClick={() => setShowCreateForm(false)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            <CreateProductForm
-              onSuccess={handleProductCreated}
-              storeId={selectedStoreId}
-              stores={stores}
-            />
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-3">
+          {Array.isArray(stores) && stores.length > 1 ? (
+            <select
+              value={selectedStoreId}
+              onChange={(e) => {
+                const nextId = e.target.value;
+                const next = new URLSearchParams(searchParams?.toString());
+                next.set("storeId", nextId);
+                router.push(`/dashboard/products?${next.toString()}`);
+              }}
+              className="rounded-full border border-[var(--border)] bg-white px-4 py-2.5 text-sm text-slate-700"
+            >
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
 
-        {editingProduct && (
-          <div className="mb-8">
-            <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold">Editar Producto</h2>
-              <button
-                onClick={() => setEditingProduct(null)}
-                className="text-gray-500 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-            <EditProductForm
-              product={editingProduct}
-              onSuccess={handleProductUpdated}
-              storeId={selectedStoreId}
-            />
-          </div>
-        )}
+          <button
+            onClick={() => {
+              setShowCreateForm(true);
+              setEditingProduct(null);
+            }}
+            className="rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+            type="button"
+          >
+            + Nuevo producto
+          </button>
+        </div>
+      </section>
 
-        {/* Products Grid - Grouped by Stores */}
-        {!showCreateForm && !editingProduct && (
-          <>
-            {totalProductCount === 0 ? (
-              <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center shadow-sm">
-                <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-blue-50">
-                  <Package className="size-7 text-blue-600" />
-                </div>
-                <h3 className="text-xl font-medium text-gray-900 mb-2">
-                  No tienes productos
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  Comienza agregando tu primer producto a las tiendas
-                </p>
-                <button
-                  onClick={() => setShowCreateForm(true)}
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
-                >
-                  + Crear Producto
-                </button>
-              </div>
-            ) : (
-              <ProductGridClient
-                productsByStore={productsByStore}
-                onEdit={handleEditProduct}
-                onDelete={handleProductDeleted}
-                onUpdate={handleProductUpdated}
-              />
+      {showCreateForm && !editingProduct ? (
+        <section className="surface p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold tracking-tight text-slate-950">
+              Crear nuevo producto
+            </h2>
+            <button
+              onClick={() => setShowCreateForm(false)}
+              className="rounded-full px-3 py-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+          <CreateProductForm
+            onSuccess={handleProductCreated}
+            storeId={selectedStoreId}
+            stores={stores}
+          />
+        </section>
+      ) : null}
+
+      {editingProduct ? (
+        <section className="surface p-6">
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="text-lg font-semibold tracking-tight text-slate-950">
+              Editar producto
+            </h2>
+            <button
+              onClick={() => setEditingProduct(null)}
+              className="rounded-full px-3 py-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+          <EditProductForm
+            product={editingProduct}
+            onSuccess={handleProductUpdated}
+            storeId={selectedStoreId}
+          />
+        </section>
+      ) : null}
+
+      {!showCreateForm && !editingProduct ? (
+        totalProductCount === 0 ? (
+          <section className="surface p-10 text-center">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-slate-50">
+              <Package className="size-7 text-[var(--accent)]" />
+            </div>
+            <h3 className="mt-4 text-xl font-medium text-slate-950">
+              No tienes productos
+            </h3>
+            <p className="mt-2 text-sm text-slate-600">
+              Comienza agregando tu primer producto al catálogo.
+            </p>
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="mt-6 rounded-full bg-[var(--accent)] px-5 py-3 text-sm font-medium text-white transition hover:bg-blue-700"
+              type="button"
+            >
+              + Crear producto
+            </button>
+          </section>
+        ) : (
+          <ProductGridClient
+            key={JSON.stringify(
+              productList.map((p) => ({ id: p.id, status: p.status })),
             )}
-          </>
-        )}
-      </div>
+            productsByStore={{
+              [selectedStoreId]: {
+                store: currentStoreData.store,
+                products: productList,
+              },
+            }}
+            onEdit={handleEditProduct}
+            onDelete={handleProductDeleted}
+            onUpdate={handleProductUpdated}
+          />
+        )
+      ) : null}
     </div>
   );
 }
+

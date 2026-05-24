@@ -5,13 +5,14 @@ import * as fs from "fs";
 import * as path from "path";
 import bcrypt from "bcryptjs";
 
-// Extraer DATABASE_URL del archivo .env
-const envPath = path.resolve(__dirname, '..', '.env');
-let connectionString = "postgresql://postgres:H5C3V9M4Z1@localhost:5432/ecommerce-saas";
+// Extraer DATABASE_URL del archivo .env (si existe)
+const envPath = path.resolve(__dirname, "..", ".env");
+let connectionString =
+  "postgresql://postgres:password@localhost:5432/ecommerce-saas";
 let envContent = "";
 
 if (fs.existsSync(envPath)) {
-  envContent = fs.readFileSync(envPath, 'utf8');
+  envContent = fs.readFileSync(envPath, "utf8");
   const dbUrlMatch = envContent.match(/DATABASE_URL="([^"]+)"/);
   if (dbUrlMatch) {
     connectionString = dbUrlMatch[1];
@@ -24,7 +25,7 @@ function getEnvVar(key: string) {
 
   if (!envContent) return undefined;
 
-  const quoted = envContent.match(new RegExp(`^${key}=\"([^\"]+)\"$`, "m"));
+  const quoted = envContent.match(new RegExp(`^${key}="([^"]+)"$`, "m"));
   if (quoted?.[1]) return quoted[1].trim();
 
   const unquoted = envContent.match(new RegExp(`^${key}=([^\n\r]+)$`, "m"));
@@ -42,50 +43,62 @@ const prisma = new PrismaClient({
 });
 
 async function main() {
-
+  // SaaS plans (price in USD; MP charges ARS after FX conversion in runtime)
   const plans = [
     {
-      name: "Plan Básico",
-      price: 5000, // Ejemplo: 5000 ARS/MXN al mes
-      currency: "ARS",
-      stripePriceId: "mp_plan_basico", // Usaremos este campo como identificador interno/MP
+      name: "Prueba",
+      price: 0,
+      currency: "usd",
+      stripePriceId: "plan_prueba",
       maxStores: 1,
-      maxProducts: 20,
+      maxProducts: 10,
       maxStaff: 1,
       features: {
-        ventas: "Hasta 20 productos",
-        soporte: "Comunidad",
-        personalizacion: "Básica",
+        tier: "free",
+        stores: 1,
+        products_per_store: 10,
       },
     },
     {
-      name: "Plan Emprendedor",
-      price: 12000,
-      currency: "ARS",
-      stripePriceId: "mp_plan_emprendedor",
-      maxStores: 2,
-      maxProducts: 100,
-      maxStaff: 3,
+      name: "Basico",
+      price: 15,
+      currency: "usd",
+      stripePriceId: "plan_basico",
+      maxStores: 1,
+      maxProducts: 30,
+      maxStaff: 2,
       features: {
-        ventas: "Hasta 100 productos",
-        soporte: "Email prioritario",
-        personalizacion: "Avanzada",
-        analytics: "Panel de control",
+        tier: "basic",
+        stores: 1,
+        products_per_store: 30,
       },
     },
     {
-      name: "Plan Corporativo",
-      price: 35000,
-      currency: "ARS",
-      stripePriceId: "mp_plan_corporativo",
+      name: "Intermedio",
+      price: 33,
+      currency: "usd",
+      stripePriceId: "plan_intermedio",
+      maxStores: 3,
+      maxProducts: 40,
+      maxStaff: 5,
+      features: {
+        tier: "intermediate",
+        stores: 3,
+        products_per_store: 40,
+      },
+    },
+    {
+      name: "Profesional",
+      price: 100,
+      currency: "usd",
+      stripePriceId: "plan_profesional",
       maxStores: 5,
-      maxProducts: null, // Ilimitado
+      maxProducts: null,
       maxStaff: 10,
       features: {
-        ventas: "Productos ilimitados",
-        soporte: "WhatsApp 24/7",
-        personalizacion: "Total",
-        analytics: "Reportes exportables",
+        tier: "pro",
+        stores: 5,
+        products_per_store: "unlimited",
       },
     },
   ];
@@ -96,13 +109,17 @@ async function main() {
       update: {
         name: plan.name,
         price: plan.price,
+        currency: plan.currency,
         maxStores: plan.maxStores,
+        maxProducts: plan.maxProducts,
+        maxStaff: plan.maxStaff,
+        features: plan.features as Prisma.InputJsonValue,
       },
       create: {
         name: plan.name,
         price: plan.price,
         currency: plan.currency,
-        stripePriceId: plan.stripePriceId, // Identificador para matchear con MP
+        stripePriceId: plan.stripePriceId,
         maxStores: plan.maxStores,
         maxProducts: plan.maxProducts,
         maxStaff: plan.maxStaff,
@@ -119,9 +136,9 @@ async function main() {
   const userPassword = getEnvVar("USER_PASSWORD");
   const userPhone = getEnvVar("USER_PHONE");
 
+  // Admin user (optional)
   if (adminEmail && adminPassword) {
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
-
     await prisma.user.upsert({
       where: { email: adminEmail },
       update: {
@@ -140,7 +157,14 @@ async function main() {
     });
   } else {
     console.warn(
-      "[seed] ADMIN_EMAIL y/o ADMIN_PASSWORD no configurados. No se creará el usuario admin.",
+      "[seed] ADMIN_EMAIL y/o ADMIN_PASSWORD no configurados. No se creara el admin.",
+    );
+  }
+
+  // Primary user + subscription (required)
+  if (!userEmail || !userPassword) {
+    throw new Error(
+      "[seed] USER_EMAIL y USER_PASSWORD son requeridos para crear el usuario base.",
     );
   }
 
@@ -150,35 +174,31 @@ async function main() {
     where: { email: userEmail },
     update: {
       password: hashedUserPassword,
-      phone: userPhone,
+      phone: userPhone ?? null,
       role: "USER",
       status: "ACTIVE",
     },
     create: {
       email: userEmail,
       password: hashedUserPassword,
-      phone: userPhone,
+      phone: userPhone ?? null,
       role: "USER",
       status: "ACTIVE",
     },
   });
 
   const defaultPlan = await prisma.plan.findUnique({
-    where: { stripePriceId: "mp_plan_basico" },
+    where: { stripePriceId: "plan_prueba" },
     select: { id: true },
   });
 
   if (!defaultPlan) {
-    throw new Error(
-      "[seed] No se encontró el plan por defecto (stripePriceId=mp_plan_basico).",
-    );
+    throw new Error("[seed] No se encontro el plan por defecto (plan_prueba).");
   }
 
   const existingSubscription = await prisma.subscription.findFirst({
-    where: {
-      userId: user.id,
-      status: { in: ["ACTIVE", "TRIAL"] },
-    },
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
     select: { id: true },
   });
 
@@ -187,6 +207,9 @@ async function main() {
       where: { id: existingSubscription.id },
       data: {
         planId: defaultPlan.id,
+        status: "ACTIVE",
+        trialStartedAt: null,
+        trialEndsAt: null,
       },
     });
   } else {
@@ -195,12 +218,11 @@ async function main() {
         userId: user.id,
         planId: defaultPlan.id,
         status: "ACTIVE",
-        trialStartedAt: new Date(),
-        trialEndsAt: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000),
+        trialStartedAt: null,
+        trialEndsAt: null,
       },
     });
   }
-
 }
 
 main()
@@ -211,3 +233,4 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
+
